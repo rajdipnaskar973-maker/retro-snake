@@ -1,5 +1,4 @@
 :root {
- :root {
   --bg: rgb(136, 98, 27);
   --bg-panel: #faefef;
   --amber: #272a29;
@@ -9,7 +8,6 @@
   --font-display: "VT323", monospace;
   --font-body: "IBM Plex Mono", monospace;
 
-}
 }
 
 * {
