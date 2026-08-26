@@ -228,7 +228,7 @@ input:focus-visible {
   gap: 10px;
   text-align: center;
   /* ---------- difficulty buttons ---------- */
-.difficulty-picker {
+}.difficulty-picker {
   display: flex;
   gap: 12px;
   justify-content: center;
@@ -243,10 +243,41 @@ input:focus-visible {
   font-size: 1.3rem;
   padding: 5px 20px;
   cursor: pointer;
+}
+  border: 2px solid var(--amber);
+  padding: 10px 22px;
+  cursor: pointer;
+  transition: background 0.4s ease-in-out,
+              color 0.4s ease-in-out,
+              transform 0.4s ease-in-out,
+              box-shadow 0.4s ease-in-out;
+  animation: btnPulse 3s ease-in-out infinite;
+
+
+.btn:hover {
+  background: var(--amber);
+  color: #000;
+  transform: scale(1.06);
+  box-shadow:
+    0 0 10px var(--amber),
+    0 0 25px var(--amber),
+    0 0 50px var(--amber);
+}
+
+.btn.small {
+  font-size: 0.9rem;
+  padding: 8px 14px;
+}
+
+@keyframes btnPulse {
+  0%   { box-shadow: 0 0 3px var(--amber); }
+  50%  { box-shadow: 0 0 12px var(--amber), 0 0 25px var(--amber); }
+  100% { box-shadow: 0 0 3px var(--amber); }
+}
   letter-spacing: 3px;
   transition: all 0.25s ease;
   animation: glowPulse 2s infinite;
-}
+
 
 .diff-btn:hover {
   background: var(--amber);
@@ -274,7 +305,7 @@ input:focus-visible {
   flex-wrap: wrap;
   justify-content: center;
   font-size: 0.85rem;
-}
+
 
 .score-form input {
   font-family: var(--font-body);
