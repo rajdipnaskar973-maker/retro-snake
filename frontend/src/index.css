@@ -1,9 +1,9 @@
 :root {
-  --bg: #0f0b07;
+  --bg: #a226b5;
   --bg-panel: #b435c8;
-  --amber: #822bb0;
-  --amber-soft: #ffd479;
-  --amber-dim: rgba(255, 176, 0, 0.35);
+  --amber: #6f0ea3;
+  --amber-soft: #a0184c;
+  --amber-dim: rgba(179, 13, 27, 0.35);
   --coral: #ff6a3d;
   --font-display: "VT323", monospace;
   --font-body: "IBM Plex Mono", monospace;
