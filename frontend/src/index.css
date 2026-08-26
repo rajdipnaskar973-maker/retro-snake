@@ -38,15 +38,37 @@ input:focus-visible {
   outline: 2px solid var(--coral);
   outline-offset: 2px;
 }
-
 .crt {
   position: relative;
   min-height: 100vh;
   overflow-x: hidden;
-  background:
-    radial-gradient(ellipse at 50% -10%, rgba(255, 176, 0, 0.08), transparent 60%),
-    var(--bg);
+  background: var(--bg);
+  animation: bgBreath 6s ease-in-out infinite;
 }
+
+@keyframes bgBreath {
+  0%   {
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255, 68, 68, 0.12), transparent 60%),
+      var(--bg);
+  }
+  33%  {
+    background:
+      radial-gradient(ellipse at 80% 50%, rgba(255, 68, 68, 0.18), transparent 60%),
+      var(--bg);
+  }
+  66%  {
+    background:
+      radial-gradient(ellipse at 20% 80%, rgba(255, 68, 68, 0.12), transparent 60%),
+      var(--bg);
+  }
+  100% {
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255, 68, 68, 0.12), transparent 60%),
+      var(--bg);
+  }
+}
+
 
 .scanlines {
   pointer-events: none;
