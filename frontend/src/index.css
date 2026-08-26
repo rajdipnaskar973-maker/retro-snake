@@ -227,51 +227,50 @@ input:focus-visible {
   justify-content: center;
   gap: 10px;
   text-align: center;
-  padding: 20px;
-}
-
-.overlay-title {
-  font-family: var(--font-display);
-  font-size: 2.2rem;
-  color: var(--coral);
-  margin: 0;
-  letter-spacing: 0.05em;
-}
-
-.overlay-sub {
-  font-size: 0.85rem;
-  color: rgba(255, 212, 121, 0.7);
-  margin: 0 0 10px;
-}
-
-.btn {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  letter-spacing: 0.05em;
-  background: transparent;
-  color: var(--amber);
-  border: 1px solid var(--amber);
-  padding: 10px 22px;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.btn:hover {
-  background: var(--amber);
-  color: var(--bg);
-}
-
-.btn.small {
-  font-size: 0.9rem;
-  padding: 8px 14px;
-}
-
-/* ---------- score form / list ---------- */
-.score-form {
+  /* ---------- difficulty buttons ---------- */
+.difficulty-picker {
   display: flex;
-  gap: 10px;
-  align-items: center;
-  margin-top: 18px;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.diff-btn {
+  background: transparent;
+  border: 2px solid var(--amber);
+  color: var(--amber);
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  padding: 5px 20px;
+  cursor: pointer;
+  letter-spacing: 3px;
+  transition: all 0.25s ease;
+  animation: glowPulse 2s infinite;
+}
+
+.diff-btn:hover {
+  background: var(--amber);
+  color: #000;
+  transform: scale(1.12);
+  box-shadow:
+    0 0 10px var(--amber),
+    0 0 30px var(--amber),
+    0 0 60px var(--amber);
+}
+
+.diff-btn.active {
+  background: var(--amber);
+  color: #000;
+  box-shadow:
+    0 0 8px var(--amber),
+    0 0 25px var(--amber);
+}
+
+@keyframes glowPulse {
+  0%   { box-shadow: 0 0 4px var(--amber); }
+  50%  { box-shadow: 0 0 18px var(--amber), 0 0 35px var(--amber); }
+  100% { box-shadow: 0 0 4px var(--amber); }
+}
   flex-wrap: wrap;
   justify-content: center;
   font-size: 0.85rem;
