@@ -1,12 +1,14 @@
 :root {
-  --bg: #a226b5;
-  --bg-panel: #b435c8;
-  --amber: #6f0ea3;
-  --amber-soft: #a0184c;
-  --amber-dim: rgba(179, 13, 27, 0.35);
-  --coral: #171617;
+ :root {
+  --bg: #000000;
+  --bg-panel: #0a1a0a;
+  --amber: #00ff41;
+  --amber-soft: #00cc33;
+  --amber-dim: rgba(0, 255, 65, 0.15);
+  --coral: #003300;
   --font-display: "VT323", monospace;
   --font-body: "IBM Plex Mono", monospace;
+}
 }
 
 * {
