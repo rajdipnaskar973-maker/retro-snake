@@ -3,6 +3,13 @@ import SnakeGame from "./SnakeGame.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const INSTAGRAM_URL = "https://www.instagram.com/_rajdip_001/?hl=en";
+const FACEBOOK_URL = "https://www.facebook.com/rajdip.naskar.675859";
+const DIFFICULTIES = {
+  easy: { label: "EASY", speedStart: 150, speedMin: 95, step: 2 },
+  medium: { label: "MEDIUM", speedStart: 120, speedMin: 70, step: 3 },
+  hard: { label: "HARD", speedStart: 95, speedMin: 45, step: 4 },
+};
+
 
 const BOOT_LINES = [
   "INITIALIZING RAJDIP.SYS ...",
@@ -38,6 +45,7 @@ export default function App() {
   const [name, setName] = useState("");
   const [lastScore, setLastScore] = useState(null);
   const [submitted, setSubmitted] = useState(false);
+  const [difficulty, setDifficulty] = useState("medium");
 
   const bestScore = highScores[0]?.score ?? 0;
 
@@ -59,7 +67,7 @@ export default function App() {
     fetch(`${API_URL}/api/highscores`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), score: lastScore }),
+      body: JSON.stringify({ name: name.trim(), score: lastScore, difficulty }),
     })
       .then((r) => r.json())
       .then((updated) => {
@@ -100,14 +108,28 @@ export default function App() {
                 Hi, I'm Rajdip. <br /> Welcome to my little corner of the internet.
               </h1>
               <p className="hero-sub">
-                BCA student, building toward AI/ML engineering. This page doubles as a
-                playable vintage Snake game — press start below and see how high you can
-                climb the leaderboard.
               </p>
             </section>
 
             <section id="play" className="play-section">
-              <SnakeGame onGameOver={handleGameOver} highScore={bestScore} />
+  <div className="difficulty-picker" role="group" aria-label="Select difficulty">
+    {Object.entries(DIFFICULTIES).map(([key, d]) => (
+      <button
+        key={key}
+        type="button"
+        className={`diff-btn ${difficulty === key ? "active" : ""}`}
+        onClick={() => setDifficulty(key)}
+      >
+        {d.label}
+      </button>
+    ))}
+  </div>
+
+  <SnakeGame
+    onGameOver={handleGameOver}
+    highScore={bestScore}
+    settings={DIFFICULTIES[difficulty]}
+  />
 
               {lastScore !== null && !submitted && (
                 <form className="score-form" onSubmit={submitScore}>
@@ -131,8 +153,6 @@ export default function App() {
               <h2>&gt; HIGH SCORES</h2>
               {highScores.length === 0 ? (
                 <p className="muted">
-                  no scores yet — be the first on the board. (backend offline? scores
-                  just won't save, the game still works.)
                 </p>
               ) : (
                 <ol className="score-list">
@@ -140,7 +160,11 @@ export default function App() {
                     <li key={i}>
                       <span className="rank">{String(i + 1).padStart(2, "0")}</span>
                       <span className="pname">{s.name}</span>
-                      <span className="pscore">{s.score}</span>
+{s.difficulty && (
+  <span className="pdiff">{s.difficulty.slice(0, 4).toUpperCase()}</span>
+)}
+<span className="pscore">{s.score}</span>
+                  
                     </li>
                   ))}
                 </ol>
@@ -153,6 +177,12 @@ export default function App() {
                 Find / message me on Instagram —{" "}
                 <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
                   @_rajdip_001 ↗
+                </a>
+              </p>
+              <p>
+                Or connect with me on Facebook —{" "}
+                <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">
+                  Rajdip Naskar ↗
                 </a>
               </p>
             </section>
