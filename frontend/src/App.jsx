@@ -16,7 +16,7 @@ const BOOT_LINES = [
   "RAJDIP.SYS ...",
   "We AREE BACKKK....",
   "LET'S MAKE FUN AGAIN ... OK",
-  " 3-----2-----1----!!!!... GO",
+  " 3-----2-----1----!!!!... OK",
   "READY_",
 ];
 
@@ -102,10 +102,8 @@ export default function App() {
         </div>
       ) : (
         <>
-          <header className="Site-header">
-            <a className="logo" href="#top">
-              <img src="frontend/src/image.png" alt="RAJDIP.SYS" />
-            </a>
+          <header className="site-header">
+            <span className="logo">☠️☠️</span>
             <nav>
               <a href="#play">PLAY</a>
               <a href="#scores">SCORES</a>
