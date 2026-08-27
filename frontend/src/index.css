@@ -349,3 +349,13 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 }
 .login-btn { margin-top: 8px; width: 100%; font-size: 1.2rem; }
 .login-error { color: var(--coral); font-size: 0.8rem; margin: 0; animation: blink 1s steps(1) infinite; }
+.login-otp-msg {
+  font-size: 0.85rem;
+  color: var(--amber-soft);
+  text-align: center;
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+.login-otp-msg strong {
+  color: var(--amber);
+}

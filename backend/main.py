@@ -7,10 +7,28 @@ Run with:
     pip install -r requirements.txt
     uvicorn main:app --reload --port 8000
 """
-
+import random
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import json
 import os
 from datetime import datetime
+GMAIL_ADDRESS = "rajdipnaskar973@gmail.com"
+GMAIL_APP_PASSWORD = "ipib ijki losu yite"
+otp_store: dict = {}
+users_file = os.path.join(os.path.dirname(__file__), "users.json")
+
+def load_users():
+    if not os.path.exists(users_file):
+        return []
+    with open(users_file, "r") as f:
+        return json.load(f)
+
+def save_users(users):
+    with open(users_file, "w") as f:
+        json.dump(users, f, indent=2)
+
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -76,3 +94,61 @@ def add_highscore(entry: ScoreIn):
     scores = scores[:MAX_SCORES]
     save_scores(scores)
     return scores
+class OTPRequest(BaseModel):
+    email: str
+    name: str
+    phone: str
+
+class OTPVerify(BaseModel):
+    email: str
+    otp: str
+    name: str
+    phone: str
+
+@app.post("/api/send-otp")
+def send_otp(data: OTPRequest):
+    otp = str(random.randint(100000, 999999))
+    otp_store[data.email] = otp
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = GMAIL_ADDRESS
+        msg["To"] = data.email
+        msg["Subject"] = "RAJDIP.SYS — Access Code"
+        body = f"""
+RAJDIP.SYS TERMINAL ACCESS
+===========================
+Your OTP Code: {otp}
+
+Enter this code to access the terminal.
+Code expires in 10 minutes.
+
+— RAJDIP.SYS
+        """
+        msg.attach(MIMEText(body, "plain"))
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+            server.sendmail(GMAIL_ADDRESS, data.email, msg.as_string())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Email failed: {str(e)}")
+    return {"message": "OTP sent successfully"}
+
+@app.post("/api/verify-otp")
+def verify_otp(data: OTPVerify):
+    if data.email not in otp_store:
+        raise HTTPException(status_code=400, detail="No OTP found. Request a new one.")
+    if otp_store[data.email] != data.otp:
+        raise HTTPException(status_code=400, detail="Wrong OTP. Try again.")
+    del otp_store[data.email]
+    users = load_users()
+    users.append({
+        "name": data.name,
+        "email": data.email,
+        "phone": data.phone,
+        "joined": datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    })
+    save_users(users)
+    return {"message": "Login successful", "success": True}
+
+@app.get("/api/users")
+def get_users():
+    return load_users()
