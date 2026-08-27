@@ -1,5 +1,5 @@
-import { useState } from "react";
-
+import { useEffect, useState } from "react";
+import Login from "./Login.jsx";
 export default function Login({ onLogin }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
