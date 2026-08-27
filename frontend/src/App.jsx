@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import SnakeGame from "./SnakeGame.jsx";
+import Login from "./Login.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const INSTAGRAM_URL = "https://www.instagram.com/_rajdip_001/?hl=en";
@@ -45,6 +46,11 @@ export default function App() {
   const [name, setName] = useState("");
   const [lastScore, setLastScore] = useState(null);
   const [submitted, setSubmitted] = useState(false);
+  const [user, setUser] = useState(() => {
+  const saved = localStorage.getItem("rajdip_user");
+  return saved ? JSON.parse(saved) : null;
+});
+function handleLogin(u) { setUser(u); }
   const [difficulty, setDifficulty] = useState("medium");
 
   const bestScore = highScores[0]?.score ?? 0;
@@ -71,6 +77,7 @@ export default function App() {
     })
       .then((r) => r.json())
       .then((updated) => {
+        if (!user) return <Login onLogin={handleLogin} />;
         setHighScores(updated);
         setSubmitted(true);
       })
