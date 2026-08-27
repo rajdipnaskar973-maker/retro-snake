@@ -13,10 +13,10 @@ const DIFFICULTIES = {
 };
 
 const BOOT_LINES = [
-  "INITIALIZING RAJDIP.SYS ...",
-  "LOADING TERMINAL FONT ... OK",
-  "MOUNTING SNAKE.EXE ... OK",
-  "CONNECTING TO SCORE SERVER ... OK",
+  "RAJDIP.SYS ...",
+  "We AREE BACKKK....",
+  "LET'S MAKE FUN AGAIN ... OK",
+  " 3-----2-----1----!!!!... GO",
   "READY_",
 ];
 
@@ -102,8 +102,10 @@ export default function App() {
         </div>
       ) : (
         <>
-          <header className="site-header">
-            <span className="logo">rj</span>
+          <header className="Site-header">
+            <a href="c:\Users\RAJDIP\Downloads\retro-snake\retro-snake\frontend\src\54a1ccaa-b08c-4ebd-8d7a-3593d5fab27a.png" className="logo">
+              
+            </a>
             <nav>
               <a href="#play">PLAY</a>
               <a href="#scores">SCORES</a>
