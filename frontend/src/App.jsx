@@ -104,7 +104,7 @@ export default function App() {
         <>
           <header className="Site-header">
             <a className="logo" href="#top">
-              <img src="frontend/src/54a1ccaa-b08c-4ebd-8d7a-3593d5fab27a.png" alt="RAJDIP.SYS" />
+              <img src="frontend/src/image.png" alt="RAJDIP.SYS" />
             </a>
             <nav>
               <a href="#play">PLAY</a>
