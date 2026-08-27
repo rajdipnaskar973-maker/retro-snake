@@ -8,12 +8,10 @@
   --font-display: "VT323", monospace;
   --font-body: "IBM Plex Mono", monospace;
 }
-* {
-  box-sizing: border-box;
-}
 
-html,
-body {
+* { box-sizing: border-box; }
+
+html, body {
   margin: 0;
   padding: 0;
   background: var(--bg);
@@ -28,16 +26,13 @@ body {
   }
 }
 
-a {
-  color: var(--amber);
-}
+a { color: var(--amber); }
 
-button:focus-visible,
-a:focus-visible,
-input:focus-visible {
+button:focus-visible, a:focus-visible, input:focus-visible {
   outline: 2px solid var(--coral);
   outline-offset: 2px;
 }
+
 .crt {
   position: relative;
   min-height: 100vh;
@@ -47,28 +42,11 @@ input:focus-visible {
 }
 
 @keyframes bgBreath {
-  0%   {
-    background:
-      radial-gradient(ellipse at 50% 0%, rgba(255, 68, 68, 0.12), transparent 60%),
-      var(--bg);
-  }
-  33%  {
-    background:
-      radial-gradient(ellipse at 80% 50%, rgba(255, 68, 68, 0.18), transparent 60%),
-      var(--bg);
-  }
-  66%  {
-    background:
-      radial-gradient(ellipse at 20% 80%, rgba(255, 68, 68, 0.12), transparent 60%),
-      var(--bg);
-  }
-  100% {
-    background:
-      radial-gradient(ellipse at 50% 0%, rgba(255, 68, 68, 0.12), transparent 60%),
-      var(--bg);
-  }
+  0%   { background: radial-gradient(ellipse at 50% 0%, rgba(255,68,68,0.12), transparent 60%), var(--bg); }
+  33%  { background: radial-gradient(ellipse at 80% 50%, rgba(255,68,68,0.18), transparent 60%), var(--bg); }
+  66%  { background: radial-gradient(ellipse at 20% 80%, rgba(255,68,68,0.12), transparent 60%), var(--bg); }
+  100% { background: radial-gradient(ellipse at 50% 0%, rgba(255,68,68,0.12), transparent 60%), var(--bg); }
 }
-
 
 .scanlines {
   pointer-events: none;
@@ -77,16 +55,14 @@ input:focus-visible {
   z-index: 50;
   background: repeating-linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0) 0px,
-    rgba(0, 0, 0, 0) 1px,
-    rgba(0, 0, 0, 0.18) 2px,
-    rgba(0, 0, 0, 0.18) 3px
+    rgba(0,0,0,0) 0px, rgba(0,0,0,0) 1px,
+    rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 3px
   );
   mix-blend-mode: multiply;
   opacity: 0.35;
 }
 
-/* ---------- boot screen ---------- */
+/* boot */
 .boot-screen {
   min-height: 100vh;
   display: flex;
@@ -94,25 +70,16 @@ input:focus-visible {
   justify-content: center;
   padding: 24px;
 }
-
 .boot-log {
   font-family: var(--font-display);
   font-size: clamp(1.1rem, 3vw, 1.6rem);
   color: var(--amber);
   line-height: 1.6;
 }
+.cursor { animation: blink 0.9s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
 
-.cursor {
-  animation: blink 0.9s steps(1) infinite;
-}
-
-@keyframes blink {
-  50% {
-    opacity: 0;
-  }
-}
-
-/* ---------- header ---------- */
+/* header */
 .site-header {
   display: flex;
   align-items: center;
@@ -122,19 +89,13 @@ input:focus-visible {
   flex-wrap: wrap;
   gap: 12px;
 }
-
 .logo {
   font-family: var(--font-display);
   font-size: 1.6rem;
   letter-spacing: 0.06em;
   color: var(--amber);
 }
-
-.site-header nav {
-  display: flex;
-  gap: 24px;
-}
-
+.site-header nav { display: flex; gap: 24px; }
 .site-header nav a {
   text-decoration: none;
   font-size: 0.85rem;
@@ -143,25 +104,19 @@ input:focus-visible {
   border-bottom: 1px solid transparent;
   padding-bottom: 2px;
 }
-
 .site-header nav a:hover {
   border-bottom-color: var(--coral);
   color: var(--coral);
 }
 
-/* ---------- hero ---------- */
-.hero {
-  padding: 10vh 6vw 6vh;
-  max-width: 900px;
-}
-
+/* hero */
+.hero { padding: 10vh 6vw 6vh; max-width: 900px; }
 .eyebrow {
   font-size: 0.85rem;
   color: var(--coral);
   letter-spacing: 0.08em;
   margin-bottom: 12px;
 }
-
 .hero h1 {
   font-family: var(--font-display);
   font-weight: 400;
@@ -169,28 +124,16 @@ input:focus-visible {
   line-height: 1.15;
   margin: 0 0 20px;
   color: var(--amber-soft);
-  text-shadow: 0 0 18px rgba(255, 176, 0, 0.25);
 }
 
-.hero-sub {
-  font-size: 1rem;
-  line-height: 1.7;
-  color: rgba(255, 212, 121, 0.75);
-  max-width: 62ch;
-}
-
-/* ---------- play section / game ---------- */
+/* play section */
 .play-section {
   padding: 2vh 6vw 6vh;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
-
-.game-wrap {
-  width: min(480px, 100%);
-}
-
+.game-wrap { width: min(480px, 100%); }
 .game-hud {
   display: flex;
   justify-content: space-between;
@@ -199,42 +142,47 @@ input:focus-visible {
   color: var(--amber);
   padding: 0 4px 8px;
 }
-
 .canvas-shell {
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
   border: 2px solid var(--amber-dim);
   border-radius: 4px;
-  box-shadow: 0 0 40px rgba(255, 176, 0, 0.08), inset 0 0 30px rgba(0, 0, 0, 0.6);
   overflow: hidden;
   touch-action: none;
 }
-
-.canvas-shell canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
+.canvas-shell canvas { display: block; width: 100%; height: 100%; }
 .overlay {
   position: absolute;
   inset: 0;
-  background: rgba(15, 11, 7, 0.88);
+  background: rgba(15,11,7,0.88);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 10px;
   text-align: center;
-  /* ---------- difficulty buttons ---------- */
-}.difficulty-picker {
+  padding: 20px;
+}
+.overlay-title {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  color: var(--coral);
+  margin: 0;
+}
+.overlay-sub {
+  font-size: 0.85rem;
+  color: rgba(255,212,121,0.7);
+  margin: 0 0 10px;
+}
+
+/* difficulty buttons */
+.difficulty-picker {
   display: flex;
   gap: 12px;
   justify-content: center;
   margin-bottom: 16px;
 }
-
 .diff-btn {
   background: transparent;
   border: 2px solid var(--amber);
@@ -243,152 +191,161 @@ input:focus-visible {
   font-size: 1.3rem;
   padding: 5px 20px;
   cursor: pointer;
+  letter-spacing: 3px;
+  transition: background 0.4s ease-in-out, color 0.4s ease-in-out,
+              transform 0.4s ease-in-out, box-shadow 0.4s ease-in-out;
+  animation: glowPulse 3.5s ease-in-out infinite;
 }
+.diff-btn:hover {
+  background: var(--amber);
+  color: #000;
+  transform: scale(1.08);
+  box-shadow: 0 0 8px var(--amber), 0 0 20px var(--amber), 0 0 45px var(--amber);
+}
+.diff-btn.active {
+  background: var(--amber);
+  color: #000;
+  animation: activeGlow 3.5s ease-in-out infinite;
+}
+@keyframes glowPulse {
+  0%   { box-shadow: 0 0 3px var(--amber); }
+  50%  { box-shadow: 0 0 12px var(--amber), 0 0 25px var(--amber); }
+  100% { box-shadow: 0 0 3px var(--amber); }
+}
+@keyframes activeGlow {
+  0%   { box-shadow: 0 0 8px var(--amber), 0 0 20px var(--amber); }
+  50%  { box-shadow: 0 0 15px var(--amber), 0 0 35px var(--amber), 0 0 60px var(--amber); }
+  100% { box-shadow: 0 0 8px var(--amber), 0 0 20px var(--amber); }
+}
+
+/* buttons */
+.btn {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  background: transparent;
+  color: var(--amber);
   border: 2px solid var(--amber);
   padding: 10px 22px;
   cursor: pointer;
-  transition: background 0.4s ease-in-out,
-              color 0.4s ease-in-out,
-              transform 0.4s ease-in-out,
-              box-shadow 0.4s ease-in-out;
+  transition: background 0.4s ease-in-out, color 0.4s ease-in-out,
+              transform 0.4s ease-in-out, box-shadow 0.4s ease-in-out;
   animation: btnPulse 3s ease-in-out infinite;
-
-
+}
 .btn:hover {
   background: var(--amber);
   color: #000;
   transform: scale(1.06);
-  box-shadow:
-    0 0 10px var(--amber),
-    0 0 25px var(--amber),
-    0 0 50px var(--amber);
+  box-shadow: 0 0 10px var(--amber), 0 0 25px var(--amber), 0 0 50px var(--amber);
 }
-
-.btn.small {
-  font-size: 0.9rem;
-  padding: 8px 14px;
-}
-
+.btn.small { font-size: 0.9rem; padding: 8px 14px; }
 @keyframes btnPulse {
   0%   { box-shadow: 0 0 3px var(--amber); }
   50%  { box-shadow: 0 0 12px var(--amber), 0 0 25px var(--amber); }
   100% { box-shadow: 0 0 3px var(--amber); }
 }
-  letter-spacing: 3px;
-  transition: all 0.25s ease;
-  animation: glowPulse 2s infinite;
 
-
-.diff-btn:hover {
-  background: var(--amber);
-  color: #000;
-  transform: scale(1.12);
-  box-shadow:
-    0 0 10px var(--amber),
-    0 0 30px var(--amber),
-    0 0 60px var(--amber);
-}
-
-.diff-btn.active {
-  background: var(--amber);
-  color: #000;
-  box-shadow:
-    0 0 8px var(--amber),
-    0 0 25px var(--amber);
-}
-
-@keyframes glowPulse {
-  0%   { box-shadow: 0 0 4px var(--amber); }
-  50%  { box-shadow: 0 0 18px var(--amber), 0 0 35px var(--amber); }
-  100% { box-shadow: 0 0 4px var(--amber); }
-}
+/* score form */
+.score-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 18px;
   flex-wrap: wrap;
   justify-content: center;
   font-size: 0.85rem;
-
-
+}
 .score-form input {
   font-family: var(--font-body);
   background: var(--bg-panel);
   border: 1px solid var(--amber-dim);
   color: var(--amber-soft);
   padding: 8px 10px;
-  letter-spacing: 0.04em;
 }
+.saved-msg { margin-top: 14px; font-size: 0.85rem; color: var(--coral); }
 
-.saved-msg {
-  margin-top: 14px;
-  font-size: 0.85rem;
-  color: var(--coral);
-}
-
-.scores-section,
-.contact-section {
+/* scores / contact */
+.scores-section, .contact-section {
   padding: 4vh 6vw;
   border-top: 1px solid var(--amber-dim);
 }
-
-.scores-section h2,
-.contact-section h2 {
+.scores-section h2, .contact-section h2 {
   font-family: var(--font-display);
   font-size: 1.6rem;
   color: var(--amber);
   margin-bottom: 18px;
 }
-
-.score-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-width: 420px;
-  font-size: 0.95rem;
-}
-
+.score-list { list-style: none; margin: 0; padding: 0; max-width: 420px; font-size: 0.95rem; }
 .score-list li {
   display: grid;
   grid-template-columns: 40px 1fr auto;
   gap: 10px;
   padding: 6px 0;
-  border-bottom: 1px dashed rgba(255, 176, 0, 0.15);
+  border-bottom: 1px dashed rgba(255,176,0,0.15);
 }
+.rank { color: var(--coral); }
+.pscore { color: var(--amber); }
+.muted { color: rgba(255,212,121,0.55); font-size: 0.85rem; }
+.contact-section a { text-decoration: none; border-bottom: 1px solid var(--coral); }
+.site-footer { padding: 20px 6vw 40px; font-size: 0.75rem; color: rgba(255,212,121,0.4); }
 
-.rank {
-  color: var(--coral);
-}
-
-.pscore {
-  color: var(--amber);
-}
-
-.muted {
-  color: rgba(255, 212, 121, 0.55);
-  font-size: 0.85rem;
-  max-width: 50ch;
-}
-
-.contact-section a {
-  text-decoration: none;
-  border-bottom: 1px solid var(--coral);
-}
-
-.site-footer {
-  padding: 20px 6vw 40px;
-  font-size: 0.75rem;
-  color: rgba(255, 212, 121, 0.4);
-}
-
-/* ---------- responsive tweaks ---------- */
+/* responsive */
 @media (max-width: 640px) {
-  .site-header {
-    padding: 16px 5vw;
-  }
-  .hero {
-    padding: 8vh 5vw 4vh;
-  }
-  .play-section,
-  .scores-section,
-  .contact-section {
-    padding-left: 5vw;
-    padding-right: 5vw;
-  }
+  .site-header { padding: 16px 5vw; }
+  .hero { padding: 8vh 5vw 4vh; }
+  .play-section, .scores-section, .contact-section { padding-left: 5vw; padding-right: 5vw; }
 }
+
+/* login */
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  animation: bgBreath 6s ease-in-out infinite;
+}
+.login-box {
+  border: 2px solid var(--amber);
+  padding: 40px;
+  width: min(420px, 90vw);
+  background: var(--bg-panel);
+  animation: boxPulse 3s ease-in-out infinite;
+}
+@keyframes boxPulse {
+  0%   { box-shadow: 0 0 15px var(--amber-dim); }
+  50%  { box-shadow: 0 0 35px var(--amber), 0 0 70px var(--amber-dim); }
+  100% { box-shadow: 0 0 15px var(--amber-dim); }
+}
+.login-logo {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--amber);
+  margin: 0 0 4px;
+  letter-spacing: 0.08em;
+}
+.login-sub { font-size: 0.8rem; color: var(--coral); margin: 0 0 30px; }
+.login-form { display: flex; flex-direction: column; gap: 18px; }
+.login-field { display: flex; flex-direction: column; gap: 6px; }
+.login-field label {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--amber);
+  letter-spacing: 0.1em;
+}
+.login-field input {
+  font-family: var(--font-body);
+  background: var(--bg);
+  border: 1px solid var(--amber-dim);
+  color: var(--amber-soft);
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  transition: border 0.3s ease, box-shadow 0.3s ease;
+}
+.login-field input:focus {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 10px var(--amber-dim);
+}
+.login-btn { margin-top: 8px; width: 100%; font-size: 1.2rem; }
+.login-error { color: var(--coral); font-size: 0.8rem; margin: 0; animation: blink 1s steps(1) infinite; }
