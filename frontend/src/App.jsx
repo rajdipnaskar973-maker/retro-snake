@@ -5,6 +5,7 @@ import Login from "./Login.jsx";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const INSTAGRAM_URL = "https://www.instagram.com/_rajdip_001/?hl=en";
 const FACEBOOK_URL = "https://www.facebook.com/rajdip.naskar.675859";
+const WHATSAPP_URL = "https://wa.me/919733087126";
 const DIFFICULTIES = {
   easy:   { label: "EASY",   speedStart: 150, speedMin: 95, step: 2 },
   medium: { label: "MEDIUM", speedStart: 120, speedMin: 70, step: 3 },
@@ -50,6 +51,10 @@ export default function App() {
   });
 
   function handleLogin(u) { setUser(u); }
+  function handleLogout() {
+  localStorage.removeItem("rajdip_user");
+  setUser(null);
+}
 
   const bestScore = highScores[0]?.score ?? 0;
 
@@ -98,7 +103,7 @@ export default function App() {
       ) : (
         <>
           <header className="site-header">
-            <span className="logo">RAJDIP.SYS</span>
+            <span className="logo">rj</span>
             <nav>
               <a href="#play">PLAY</a>
               <a href="#scores">SCORES</a>
@@ -173,6 +178,9 @@ export default function App() {
               </p>
               <p>Or connect with me on Facebook —{" "}
                 <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">Rajdip Naskar ↗</a>
+              </p>
+              <p>Or send me a message on WhatsApp —{" "}
+                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">Rajdip Naskar ↗</a>
               </p>
             </section>
           </main>
