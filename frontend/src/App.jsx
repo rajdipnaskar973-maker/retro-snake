@@ -103,7 +103,7 @@ export default function App() {
       ) : (
         <>
           <header className="Site-header">
-            <a href="c:\Users\RAJDIP\Downloads\retro-snake\retro-snake\frontend\src\54a1ccaa-b08c-4ebd-8d7a-3593d5fab27a.png" className="logo">
+            <a href="frontend/src/54a1ccaa-b08c-4ebd-8d7a-3593d5fab27a.png" className="logo">
               
             </a>
             <nav>
