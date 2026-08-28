@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import SnakeGame from "./SnakeGame.jsx";
-import TetrisGame from "./TetrisGame.jsx";
 import ZombieGame from "./ZombieGame.jsx";
 import TankGame from "./TankGame.jsx";
 import Login from "./Login.jsx";
@@ -8,6 +7,7 @@ import Login from "./Login.jsx";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const INSTAGRAM_URL = "https://www.instagram.com/_rajdip_001/?hl=en";
 const FACEBOOK_URL  = "https://www.facebook.com/rajdip.naskar.675859";
+const WHASTAPP_URL   = "https://wa.me/9733087126";
 
 const DIFFICULTIES = {
   easy:   { label: "EASY",   speedStart: 150, speedMin: 95, step: 2 },
@@ -17,7 +17,6 @@ const DIFFICULTIES = {
 
 const GAMES = [
   { id:"snake",  title:"SNAKE.EXE",  desc:"Classic snake — eat grow survive",     icon:"🐍" },
-  { id:"tetris", title:"TETRIS.EXE", desc:"Stack blocks clear lines beat gravity", icon:"🟦" },
   { id:"zombie", title:"ZOMBIE.EXE", desc:"Survive zombie waves WASD auto-aim",   icon:"🧟" },
   { id:"tank",   title:"TANK.EXE",   desc:"2 player tank battle same keyboard",    icon:"🎖️" },
 ];
@@ -202,6 +201,8 @@ export default function App() {
                 <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">@_rajdip_001 ↗</a></p>
               <p>Or connect with me on Facebook —{" "}
                 <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">Rajdip Naskar ↗</a></p>
+              <p>Or message me on WhatsApp —{" "}
+                <a href={WHASTAPP_URL} target="_blank" rel="noopener noreferrer">Rajdip Naskar ↗</a></p>
             </section>
           </main>
 
