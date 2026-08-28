@@ -1,1267 +1,1321 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-
-/* ==========================================================================
-   1. SPATIAL CONSTANTS & MATH UTILITIES
-   ========================================================================== */
-const ARENA_WIDTH = 1000;
-const ARENA_HEIGHT = 1000;
-const PLAYER_RADIUS = 18;
-const BASE_FOV = Math.PI / 2.6; // ~69 degree realistic vision cone
-
-function clamp(val, min, max) {
-  return Math.max(min, Math.min(max, val));
-}
-
-function normalizeAngle(angle) {
-  while (angle > Math.PI) angle -= Math.PI * 2;
-  while (angle < -Math.PI) angle += Math.PI * 2;
-  return angle;
-}
-
-function circleRectCollide(cx, cy, r, rect) {
-  const nx = clamp(cx, rect.x, rect.x + rect.w);
-  const ny = clamp(cy, rect.y, rect.y + rect.h);
-  return Math.hypot(cx - nx, cy - ny) < r;
-}
-
-function lineIntersectsRect(x1, y1, x2, y2, rect) {
-  const minX = Math.min(x1, x2);
-  const maxX = Math.max(x1, x2);
-  const minY = Math.min(y1, y2);
-  const maxY = Math.max(y1, y2);
-
-  if (maxX < rect.x || minX > rect.x + rect.w || maxY < rect.y || minY > rect.y + rect.h) {
-    return false;
-  }
-
-  const steps = 14;
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const px = x1 + (x2 - x1) * t;
-    const py = y1 + (y2 - y1) * t;
-    if (px >= rect.x && px <= rect.x + rect.w && py >= rect.y && py <= rect.y + rect.h) {
-      return true;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Shadow Strike - Stealth Action</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
     }
-  }
-  return false;
-}
 
-// 2D Decoupled Sliding Vector Movement
-function tryMoveWithSlide(x, y, dx, dy, radius, obstacles) {
-  let finalX = x;
-  let finalY = y;
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #07090e;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #fff;
+    }
 
-  const testX = x + dx;
-  let hitX = testX < radius || testX > ARENA_WIDTH - radius;
-  if (!hitX) {
-    for (let i = 0; i < obstacles.length; i++) {
-      if (circleRectCollide(testX, y, radius, obstacles[i])) {
-        hitX = true;
-        break;
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      display: block;
+      background-color: #0d1117;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+      cursor: crosshair;
+    }
+
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+    }
+
+    .hud-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      background: rgba(13, 17, 23, 0.75);
+      backdrop-filter: blur(8px);
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+
+    .hud-stat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .health-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 140px;
+    }
+
+    .health-bar-bg {
+      width: 100%;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .health-bar-fill {
+      width: 100%;
+      height: 100%;
+      background: #00ff66;
+      transition: width 0.2s ease, background-color 0.2s ease;
+    }
+
+    .hud-badge {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      color: #00d4ff;
+    }
+
+    .modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(7, 9, 14, 0.85);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      pointer-events: auto;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      z-index: 10;
+    }
+
+    .modal.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-card {
+      background: #161b22;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 40px;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+      transform: translateY(20px);
+      transition: transform 0.3s ease;
+    }
+
+    .modal.active .modal-card {
+      transform: translateY(0);
+    }
+
+    .modal-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    .modal-desc {
+      font-size: 15px;
+      color: #8b949e;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .btn {
+      background: #00d4ff;
+      color: #07090e;
+      border: none;
+      padding: 12px 28px;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.1s ease, background-color 0.2s ease;
+    }
+
+    .btn:hover {
+      background: #38e1ff;
+      transform: scale(1.03);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .win-text { color: #00ff66; }
+    .lose-text { color: #ff3366; }
+    .info-text { color: #00d4ff; }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+      <div class="hud-bar">
+        <div class="hud-stat">
+          <span>HEALTH</span>
+          <div class="health-container">
+            <div class="health-bar-bg">
+              <div id="health-fill" class="health-bar-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-stat">
+          <span>LEVEL:</span>
+          <span id="level-display" class="hud-badge">1/3</span>
+        </div>
+
+        <div class="hud-stat">
+          <span>ENEMIES:</span>
+          <span id="enemies-display" class="hud-badge" style="color: #ff3366;">0</span>
+        </div>
+
+        <div class="hud-stat">
+          <span>GEMS:</span>
+          <span id="gems-display" class="hud-badge" style="color: #ffd700;">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Start / Level / Game Over Modals -->
+    <div id="menu-modal" class="modal active">
+      <div class="modal-card">
+        <h1 class="modal-title info-text">SHADOW STRIKE</h1>
+        <p class="modal-desc">
+          Tap or click to move.<br>
+          Sneak behind guards to eliminate them silently.<br>
+          Avoid their vision cones, collect gems, and survive.
+        </p>
+        <button id="start-btn" class="btn">START OPERATION</button>
+      </div>
+    </div>
+
+    <div id="victory-modal" class="modal">
+      <div class="modal-card">
+        <h1 class="modal-title win-text">AREA CLEARED</h1>
+        <p id="victory-desc" class="modal-desc">All targets neutralized. Ready for extraction.</p>
+        <button id="next-btn" class="btn">NEXT SECTOR</button>
+      </div>
+    </div>
+
+    <div id="gameover-modal" class="modal">
+      <div class="modal-card">
+        <h1 class="modal-title lose-text">MISSION FAILED</h1>
+        <p class="modal-desc">You were detected and eliminated by security forces.</p>
+        <button id="restart-btn" class="btn">RETRY SECTOR</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       AUDIO SYNTHESIZER (WEB AUDIO API)
+       ========================================================================== */
+    class SoundController {
+      constructor() {
+        this.ctx = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playStep() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const now = this.ctx.currentTime;
+        
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(80, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.05);
+
+        gain.gain.setValueAtTime(0.04, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.05);
+      }
+
+      playStab() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        
+        // Noise buffer for knife slash/impact
+        const bufferSize = this.ctx.sampleRate * 0.12;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1200, now);
+        filter.frequency.exponentialRampToValueAtTime(400, now + 0.12);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        noise.start(now);
+      }
+
+      playAlert() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.linearRampToValueAtTime(880, now + 0.15);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.2);
+      }
+
+      playGunshot() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        
+        // Punch oscillator
+        const osc = this.ctx.createOscillator();
+        const oscGain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
+        oscGain.gain.setValueAtTime(0.4, now);
+        oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.connect(oscGain);
+        oscGain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.1);
+
+        // Gunshot noise decay
+        const bufferSize = this.ctx.sampleRate * 0.2;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+        noise.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(now);
+      }
+
+      playGem() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(987.77, now); // B5
+        osc.frequency.setValueAtTime(1318.51, now + 0.06); // E6
+
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.2);
+      }
+
+      playVictory() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C, E, G, C
+        notes.forEach((freq, index) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const startTime = now + index * 0.1;
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, startTime);
+
+          gain.gain.setValueAtTime(0.2, startTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(startTime);
+          osc.stop(startTime + 0.3);
+        });
       }
     }
-  }
-  if (!hitX) finalX = testX;
 
-  const testY = y + dy;
-  let hitY = testY < radius || testY > ARENA_HEIGHT - radius;
-  if (!hitY) {
-    for (let i = 0; i < obstacles.length; i++) {
-      if (circleRectCollide(finalX, testY, radius, obstacles[i])) {
-        hitY = true;
-        break;
+    const sound = new SoundController();
+
+    /* ==========================================================================
+       VECTOR & COLLISION MATH
+       ========================================================================== */
+    class Vec2 {
+      constructor(x = 0, y = 0) {
+        this.x = x;
+        this.y = y;
       }
-    }
-  }
-  if (!hitY) finalY = testY;
-
-  return { x: finalX, y: finalY, moved: finalX !== x || finalY !== y };
-}
-
-// Raymarching for light occlusion
-function castVisionRay(ox, oy, angle, maxDist, obstacles) {
-  const step = 8;
-  const count = Math.floor(maxDist / step);
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-
-  for (let i = 1; i <= count; i++) {
-    const rx = ox + cos * (i * step);
-    const ry = oy + sin * (i * step);
-
-    if (rx < 0 || rx > ARENA_WIDTH || ry < 0 || ry > ARENA_HEIGHT) {
-      return { x: rx, y: ry, hit: true };
-    }
-
-    for (let o = 0; o < obstacles.length; o++) {
-      const ob = obstacles[o];
-      if (rx >= ob.x && rx <= ob.x + ob.w && ry >= ob.y && ry <= ob.y + ob.h) {
-        return { x: rx, y: ry, hit: true };
+      set(x, y) { this.x = x; this.y = y; return this; }
+      add(v) { this.x += v.x; this.y += v.y; return this; }
+      sub(v) { this.x -= v.x; this.y -= v.y; return this; }
+      mult(s) { this.x *= s; this.y *= s; return this; }
+      mag() { return Math.hypot(this.x, this.y); }
+      normalize() {
+        const m = this.mag();
+        if (m > 0) { this.x /= m; this.y /= m; }
+        return this;
       }
+      dist(v) { return Math.hypot(this.x - v.x, this.y - v.y); }
+      angle() { return Math.atan2(this.y, this.x); }
+      clone() { return new Vec2(this.x, this.y); }
     }
-  }
-  return { x: ox + cos * maxDist, y: oy + sin * maxDist, hit: false };
-}
 
-function getRandomOpenPoint(obstacles, minDistFromPlayer = 240) {
-  let attempts = 0;
-  while (attempts < 60) {
-    const px = 100 + Math.random() * (ARENA_WIDTH - 200);
-    const py = 100 + Math.random() * (ARENA_HEIGHT - 200);
-    const hits = obstacles.some((ob) => circleRectCollide(px, py, 34, ob));
-    const distToSpawn = Math.hypot(px - 140, py - (ARENA_HEIGHT - 140));
-    if (!hits && distToSpawn > minDistFromPlayer) {
-      return { x: px, y: py };
-    }
-    attempts++;
-  }
-  return { x: 800, y: 200 };
-}
-
-/* ==========================================================================
-   2. SYNTHESIZED AUDIO FX ENGINE
-   ========================================================================== */
-let audioCtx = null;
-function getAudioContext() {
-  if (typeof window === "undefined") return null;
-  if (!audioCtx) {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    audioCtx = new AudioContextClass();
-  }
-  if (audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
-  return audioCtx;
-}
-
-function playSound(type) {
-  try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    if (type === "kill") {
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(360, now);
-      osc.frequency.exponentialRampToValueAtTime(25, now + 0.35);
-      gain.gain.setValueAtTime(0.5, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.35);
-    } else if (type === "shot") {
-      osc.type = "square";
-      osc.frequency.setValueAtTime(160, now);
-      osc.frequency.exponentialRampToValueAtTime(30, now + 0.18);
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.18);
-    } else if (type === "alert") {
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(700, now);
-      osc.frequency.linearRampToValueAtTime(1050, now + 0.08);
-      osc.frequency.linearRampToValueAtTime(700, now + 0.16);
-      gain.gain.setValueAtTime(0.28, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.22);
-    } else if (type === "investigate") {
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.linearRampToValueAtTime(580, now + 0.12);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.18);
-    } else if (type === "dash") {
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(280, now);
-      osc.frequency.exponentialRampToValueAtTime(700, now + 0.14);
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.14);
-    } else if (type === "win") {
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(380, now);
-      osc.frequency.exponentialRampToValueAtTime(900, now + 0.4);
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.4);
-    } else if (type === "lose") {
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(280, now);
-      osc.frequency.exponentialRampToValueAtTime(20, now + 0.55);
-      gain.gain.setValueAtTime(0.45, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.55);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.55);
-    }
-  } catch (e) {
-    // Audio safe fallback
-  }
-}
-
-/* ==========================================================================
-   3. PROCEDURAL STAGE MAPS
-   ========================================================================== */
-function getMapForLevel(level) {
-  const mapIdx = ((level - 1) % 5) + 1;
-  switch (mapIdx) {
-    case 1:
-      return {
-        theme: "Courtyard Infiltration",
-        bg: "#060911",
-        wallColor: "#151e2e",
-        wallBorder: "#25344f",
-        obstacles: [
-          { x: 160, y: 160, w: 140, h: 100 },
-          { x: 700, y: 160, w: 140, h: 100 },
-          { x: 420, y: 220, w: 160, h: 90 },
-          { x: 180, y: 440, w: 100, h: 140 },
-          { x: 720, y: 440, w: 100, h: 140 },
-          { x: 420, y: 680, w: 160, h: 90 },
-          { x: 160, y: 740, w: 140, h: 100 },
-          { x: 700, y: 740, w: 140, h: 100 },
-        ],
-        spawnPoints: [
-          { x: 840, y: 160 },
-          { x: 840, y: 840 },
-          { x: 500, y: 140 },
-        ],
-      };
-    case 2:
-      return {
-        theme: "Matrix Grid Sector",
-        bg: "#08070e",
-        wallColor: "#1a162b",
-        wallBorder: "#342852",
-        obstacles: [
-          { x: 150, y: 150, w: 110, h: 200 },
-          { x: 740, y: 150, w: 110, h: 200 },
-          { x: 340, y: 420, w: 130, h: 150 },
-          { x: 530, y: 420, w: 130, h: 150 },
-          { x: 150, y: 650, w: 110, h: 200 },
-          { x: 740, y: 650, w: 110, h: 200 },
-        ],
-        spawnPoints: [
-          { x: 840, y: 150 },
-          { x: 500, y: 150 },
-          { x: 840, y: 500 },
-          { x: 840, y: 850 },
-        ],
-      };
-    case 3:
-      return {
-        theme: "Labyrinth Warehouse",
-        bg: "#090606",
-        wallColor: "#261a1a",
-        wallBorder: "#4a2c2c",
-        obstacles: [
-          { x: 120, y: 160, w: 280, h: 70 },
-          { x: 600, y: 160, w: 280, h: 70 },
-          { x: 240, y: 340, w: 90, h: 300 },
-          { x: 670, y: 340, w: 90, h: 300 },
-          { x: 420, y: 440, w: 160, h: 120 },
-          { x: 120, y: 770, w: 280, h: 70 },
-          { x: 600, y: 770, w: 280, h: 70 },
-        ],
-        spawnPoints: [
-          { x: 880, y: 120 },
-          { x: 500, y: 120 },
-          { x: 880, y: 500 },
-          { x: 120, y: 480 },
-          { x: 880, y: 880 },
-        ],
-      };
-    case 4:
-      return {
-        theme: "Fortress Stronghold",
-        bg: "#050b0b",
-        wallColor: "#142626",
-        wallBorder: "#234747",
-        obstacles: [
-          { x: 180, y: 180, w: 120, h: 120 },
-          { x: 440, y: 180, w: 120, h: 120 },
-          { x: 700, y: 180, w: 120, h: 120 },
-          { x: 310, y: 440, w: 120, h: 120 },
-          { x: 570, y: 440, w: 120, h: 120 },
-          { x: 180, y: 700, w: 120, h: 120 },
-          { x: 440, y: 700, w: 120, h: 120 },
-          { x: 700, y: 700, w: 120, h: 120 },
-        ],
-        spawnPoints: [
-          { x: 860, y: 120 },
-          { x: 500, y: 100 },
-          { x: 860, y: 440 },
-          { x: 860, y: 860 },
-          { x: 120, y: 120 },
-          { x: 500, y: 860 },
-        ],
-      };
-    case 5:
-    default:
-      return {
-        theme: "Command Bunker Arena",
-        bg: "#0c0604",
-        wallColor: "#2b1812",
-        wallBorder: "#542c1e",
-        obstacles: [
-          { x: 160, y: 160, w: 160, h: 80 },
-          { x: 680, y: 160, w: 160, h: 80 },
-          { x: 160, y: 760, w: 160, h: 80 },
-          { x: 680, y: 760, w: 160, h: 80 },
-          { x: 130, y: 390, w: 80, h: 220 },
-          { x: 790, y: 390, w: 80, h: 220 },
-          { x: 440, y: 440, w: 120, h: 120 },
-        ],
-        spawnPoints: [
-          { x: 500, y: 180 }, // Boss anchor spawn
-          { x: 860, y: 140 },
-          { x: 860, y: 860 },
-          { x: 140, y: 140 },
-          { x: 500, y: 860 },
-        ],
-      };
-  }
-}
-
-/* ==========================================================================
-   4. TACTICAL ENEMY AI CLASS
-   ========================================================================== */
-class TacticalTankAI {
-  constructor(id, x, y, isBoss = false, level = 1, variant = "crimson") {
-    this.id = id;
-    this.isBoss = isBoss;
-    this.variant = variant; // "crimson", "rust", "boss"
-    this.x = x;
-    this.y = y;
-    this.lastX = x;
-    this.lastY = y;
-    this.stuckTime = 0;
-
-    this.radius = isBoss ? 32 : 18;
-    this.angle = Math.random() * Math.PI * 2;
-    this.turretAngle = this.angle;
-
-    this.speed = (isBoss ? 210 : 230) + Math.min(level * 10, 85);
-    this.turnSpeed = 3.6 + Math.min(level * 0.18, 1.6);
-    this.visionRange = 290 + Math.min(level * 18, 130) + (isBoss ? 90 : 0);
-    this.visionFov = BASE_FOV;
-
-    this.maxHp = isBoss ? 3 + Math.floor(level / 5) * 2 : 1;
-    this.hp = this.maxHp;
-    this.alive = true;
-
-    this.state = "patrol"; // "patrol" | "investigate" | "hunt"
-    this.navTarget = { x, y };
-    this.retargetTimer = 0;
-    this.fireCooldown = 0;
-    this.recoil = 0;
-  }
-
-  // Called when nearby kill sound occurs
-  alertToSound(soundX, soundY) {
-    if (this.state !== "hunt") {
-      this.state = "investigate";
-      this.navTarget = { x: soundX, y: soundY };
-      this.retargetTimer = 4.0; // Sprint to location and search
-      playSound("investigate");
-    }
-  }
-
-  update(dt, player, obstacles, onFireShell) {
-    if (!this.alive) return;
-
-    if (this.fireCooldown > 0) this.fireCooldown -= dt;
-    if (this.recoil > 0) this.recoil = Math.max(0, this.recoil - dt * 25);
-    this.retargetTimer -= dt;
-
-    const toPlayerDist = Math.hypot(player.x - this.x, player.y - this.y);
-    const radToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
-
-    let dAngle = normalizeAngle(radToPlayer - this.angle);
-    const inCone = Math.abs(dAngle) < this.visionFov / 2 && toPlayerDist < this.visionRange;
-    const isBlocked = obstacles.some((ob) =>
-      lineIntersectsRect(this.x, this.y, player.x, player.y, ob)
-    );
-
-    // Visual Detection
-    if (inCone && !isBlocked) {
-      if (this.state !== "hunt") {
-        playSound("alert");
+    function lineIntersects(p1, p2, p3, p4) {
+      const denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
+      if (denom === 0) return null;
+      const ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
+      const ub = ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) / denom;
+      if (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1) {
+        return new Vec2(p1.x + ua * (p2.x - p1.x), p1.y + ua * (p2.y - p1.y));
       }
-      this.state = "hunt";
-      this.navTarget = { x: player.x, y: player.y };
-      this.retargetTimer = 4.0;
+      return null;
     }
 
-    // Wandering Patrol Selection
-    if (this.retargetTimer <= 0) {
-      this.state = "patrol";
-      this.navTarget = getRandomOpenPoint(obstacles, 0);
-      this.retargetTimer = 2.5 + Math.random() * 2.0;
+    function circleRectCollide(cx, cy, r, rx, ry, rw, rh) {
+      const closeX = Math.max(rx, Math.min(cx, rx + rw));
+      const closeY = Math.max(ry, Math.min(cy, ry + rh));
+      const dX = cx - closeX;
+      const dY = cy - closeY;
+      return (dX * dX + dY * dY) < (r * r);
     }
 
-    // Steering
-    const targetAngle = Math.atan2(this.navTarget.y - this.y, this.navTarget.x - this.x);
-    const turnDiff = normalizeAngle(targetAngle - this.angle);
-    this.angle += Math.max(-this.turnSpeed * dt, Math.min(this.turnSpeed * dt, turnDiff));
-    this.turretAngle = this.angle;
-
-    // 5-Ray Obstacle Avoidance Whiskers
-    let avoidTurn = 0;
-    const lookAhead = this.radius + 38;
-    const sensorAngles = [-0.7, -0.35, 0, 0.35, 0.7];
-
-    for (let i = 0; i < sensorAngles.length; i++) {
-      const testA = this.angle + sensorAngles[i];
-      const testX = this.x + Math.cos(testA) * lookAhead;
-      const testY = this.y + Math.sin(testA) * lookAhead;
-
-      const collides =
-        testX < this.radius ||
-        testX > ARENA_WIDTH - this.radius ||
-        testY < this.radius ||
-        testY > ARENA_HEIGHT - this.radius ||
-        obstacles.some((ob) => circleRectCollide(testX, testY, this.radius, ob));
-
-      if (collides) {
-        avoidTurn += sensorAngles[i] < 0 ? 1.2 : -1.2;
-      }
-    }
-    this.angle += avoidTurn * dt * 4.5;
-
-    // Slide Movement
-    const speedMultiplier = this.state === "hunt" ? 1.3 : this.state === "investigate" ? 1.15 : 0.95;
-    const moveSpeed = this.speed * speedMultiplier;
-    const vx = Math.cos(this.angle) * moveSpeed * dt;
-    const vy = Math.sin(this.angle) * moveSpeed * dt;
-
-    const res = tryMoveWithSlide(this.x, this.y, vx, vy, this.radius, obstacles);
-    this.x = res.x;
-    this.y = res.y;
-
-    // Anti-Stuck Dynamic Resolver
-    const stepDist = Math.hypot(this.x - this.lastX, this.y - this.lastY);
-    this.lastX = this.x;
-    this.lastY = this.y;
-
-    if (stepDist < 1.0) {
-      this.stuckTime += dt;
-      if (this.stuckTime > 0.35) {
-        this.angle += (Math.random() > 0.5 ? 1 : -1) * 2.8 * dt;
-        this.navTarget = getRandomOpenPoint(obstacles, 0);
-        this.retargetTimer = 2.0;
-        this.stuckTime = 0;
-      }
-    } else {
-      this.stuckTime = 0;
-    }
-
-    // Weapon Fire
-    if (this.state === "hunt" && Math.abs(dAngle) < 0.28 && this.fireCooldown <= 0 && !isBlocked) {
-      this.fireCooldown = this.isBoss ? 0.75 : 1.15;
-      this.recoil = 10;
-      const barrelDist = this.radius + 14;
-      onFireShell({
-        x: this.x + Math.cos(this.angle) * barrelDist,
-        y: this.y + Math.sin(this.angle) * barrelDist,
-        vx: Math.cos(this.angle) * 520,
-        vy: Math.sin(this.angle) * 520,
-        isBoss: this.isBoss,
-      });
-      playSound("shot");
-    }
-  }
-}
-
-/* ==========================================================================
-   5. MASTER REACT ARCADE GAME COMPONENT
-   ========================================================================== */
-export default function TankGame() {
-  const canvasRef = useRef(null);
-  const rootRef = useRef(null);
-  const [viewportDim, setViewportDim] = useState(600);
-  const [stage, setStage] = useState(1);
-  const [gameState, setGameState] = useState("ready"); // "ready" | "playing" | "victory" | "defeated"
-  const [credits, setCredits] = useState(0);
-
-  const [hudState, setHudState] = useState({
-    remaining: 3,
-    total: 3,
-    isBoss: false,
-    theme: "",
-  });
-
-  const simRef = useRef(null);
-  const keyMap = useRef({});
-  const touchCoords = useRef(null);
-  const cameraShake = useRef(0);
-
-  // Resize Viewport to match parent container width
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el) return;
-    const resizeObserver = new ResizeObserver((entries) => {
-      if (!entries || !entries[0]) return;
-      const w = entries[0].contentRect.width;
-      const finalDim = Math.min(Math.floor(w), 760);
-      setViewportDim(finalDim > 280 ? finalDim : 280);
-    });
-    resizeObserver.observe(el);
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  // Assemble Level Entities
-  const assembleLevel = useCallback((lvl) => {
-    const mapConfig = getMapForLevel(lvl);
-    const enemyCount = Math.min(2 + lvl, 7); // Level 1 starts with 3 enemy tanks
-    const isBossStage = lvl % 5 === 0;
-
-    const squad = [];
-    for (let i = 0; i < enemyCount; i++) {
-      const spawnPt =
-        mapConfig.spawnPoints[i % mapConfig.spawnPoints.length] || { x: 800, y: 200 };
-      const variant = i % 2 === 0 ? "crimson" : "rust";
-      squad.push(new TacticalTankAI(`soldier_${i}`, spawnPt.x, spawnPt.y, false, lvl, variant));
-    }
-
-    if (isBossStage) {
-      squad.push(new TacticalTankAI(`boss_${lvl}`, 500, 200, true, lvl, "boss"));
-    }
-
-    simRef.current = {
-      level: lvl,
-      map: mapConfig,
-      player: {
-        x: 140,
-        y: ARENA_HEIGHT - 140,
-        targetX: 140,
-        targetY: ARENA_HEIGHT - 140,
-        angle: -Math.PI / 4,
-        speed: 380,
-        dashSpeed: 580,
-        dashTimer: 0,
-        dashCooldown: 0,
-        alive: true,
-        recoil: 0,
+    /* ==========================================================================
+       MAP & LEVEL DEFINITIONS
+       ========================================================================== */
+    const LEVEL_DATA = [
+      {
+        id: 1,
+        name: "Dock Warehouse",
+        walls: [
+          // Outer Bounds
+          { x: 0, y: 0, w: 900, h: 20 },
+          { x: 0, y: 580, w: 900, h: 20 },
+          { x: 0, y: 0, w: 20, h: 600 },
+          { x: 880, y: 0, w: 20, h: 600 },
+          // Obstacles & Rooms
+          { x: 160, y: 120, w: 140, h: 100 },
+          { x: 160, y: 360, w: 140, h: 120 },
+          { x: 420, y: 180, w: 60, h: 240 },
+          { x: 600, y: 100, w: 160, h: 120 },
+          { x: 600, y: 360, w: 160, h: 140 }
+        ],
+        guards: [
+          { x: 350, y: 140, waypoints: [{x:350, y:140}, {x:350, y:460}] },
+          { x: 530, y: 460, waypoints: [{x:530, y:460}, {x:530, y:140}] },
+          { x: 780, y: 260, waypoints: [{x:780, y:260}, {x:780, y:500}, {x:530, y:500}] }
+        ],
+        playerStart: { x: 70, y: 70 }
       },
-      enemies: squad,
-      shells: [],
-      particles: [],
-      treadTracks: [],
-    };
+      {
+        id: 2,
+        name: "Corporate Labs",
+        walls: [
+          // Outer Bounds
+          { x: 0, y: 0, w: 900, h: 20 },
+          { x: 0, y: 580, w: 900, h: 20 },
+          { x: 0, y: 0, w: 20, h: 600 },
+          { x: 880, y: 0, w: 20, h: 600 },
+          // Rooms
+          { x: 140, y: 120, w: 20, h: 360 },
+          { x: 260, y: 20, w: 20, h: 240 },
+          { x: 260, y: 340, w: 20, h: 240 },
+          { x: 400, y: 160, w: 120, h: 120 },
+          { x: 400, y: 360, w: 120, h: 100 },
+          { x: 620, y: 100, w: 140, h: 60 },
+          { x: 620, y: 240, w: 140, h: 140 },
+          { x: 620, y: 460, w: 140, h: 60 }
+        ],
+        guards: [
+          { x: 200, y: 80, waypoints: [{x:200, y:80}, {x:200, y:500}] },
+          { x: 330, y: 480, waypoints: [{x:330, y:480}, {x:330, y:100}] },
+          { x: 550, y: 200, waypoints: [{x:550, y:200}, {x:550, y:450}] },
+          { x: 800, y: 150, waypoints: [{x:800, y:150}, {x:800, y:480}] }
+        ],
+        playerStart: { x: 60, y: 300 }
+      },
+      {
+        id: 3,
+        name: "Black Site Facility",
+        walls: [
+          // Outer Bounds
+          { x: 0, y: 0, w: 900, h: 20 },
+          { x: 0, y: 580, w: 900, h: 20 },
+          { x: 0, y: 0, w: 20, h: 600 },
+          { x: 880, y: 0, w: 20, h: 600 },
+          // Complex obstacles
+          { x: 120, y: 100, w: 100, h: 100 },
+          { x: 120, y: 400, w: 100, h: 100 },
+          { x: 300, y: 200, w: 80, h: 200 },
+          { x: 460, y: 80, w: 100, h: 140 },
+          { x: 460, y: 380, w: 100, h: 140 },
+          { x: 640, y: 200, w: 80, h: 200 },
+          { x: 780, y: 100, w: 60, h: 120 },
+          { x: 780, y: 380, w: 60, h: 120 }
+        ],
+        guards: [
+          { x: 240, y: 100, waypoints: [{x:240, y:100}, {x:240, y:500}] },
+          { x: 400, y: 120, waypoints: [{x:400, y:120}, {x:400, y:480}] },
+          { x: 580, y: 480, waypoints: [{x:580, y:480}, {x:580, y:120}] },
+          { x: 740, y: 150, waypoints: [{x:740, y:150}, {x:740, y:450}] },
+          { x: 840, y: 300, waypoints: [{x:840, y:300}, {x:600, y:300}] }
+        ],
+        playerStart: { x: 50, y: 50 }
+      }
+    ];
 
-    setHudState({
-      remaining: squad.length,
-      total: squad.length,
-      isBoss: isBossStage,
-      theme: mapConfig.theme,
-    });
+    /* ==========================================================================
+       PARTICLE & PROJECTILE SYSTEM
+       ========================================================================== */
+    class Particle {
+      constructor(x, y, color, speed, size, life, type = 'normal') {
+        this.pos = new Vec2(x, y);
+        const angle = Math.random() * Math.PI * 2;
+        const velMag = Math.random() * speed;
+        this.vel = new Vec2(Math.cos(angle) * velMag, Math.sin(angle) * velMag);
+        this.color = color;
+        this.size = size;
+        this.maxLife = life;
+        this.life = life;
+        this.type = type;
+      }
 
-    setGameState("playing");
-  }, []);
-
-  const launchFirstMission = () => {
-    setStage(1);
-    assembleLevel(1);
-  };
-
-  const restartCurrentMission = () => {
-    assembleLevel(stage);
-  };
-
-  const proceedNextMission = () => {
-    const nextLvl = stage + 1;
-    setStage(nextLvl);
-    assembleLevel(nextLvl);
-  };
-
-  // Keyboard navigation & dash
-  useEffect(() => {
-    function handleKeyDown(e) {
-      const k = e.key.toLowerCase();
-      keyMap.current[k] = true;
-
-      if (k === " " && gameState === "playing") {
-        const p = simRef.current?.player;
-        if (p && p.dashCooldown <= 0) {
-          p.dashTimer = 0.22;
-          p.dashCooldown = 1.1;
-          playSound("dash");
+      update(dt) {
+        this.pos.add(new Vec2(this.vel.x * dt * 60, this.vel.y * dt * 60));
+        this.life -= dt;
+        if (this.type === 'blood') {
+          this.vel.mult(0.92); // blood splatters and stops
         }
       }
 
-      if (e.key === " ") {
-        if (gameState === "ready") launchFirstMission();
-        if (gameState === "defeated") restartCurrentMission();
-        if (gameState === "victory") proceedNextMission();
-      }
-    }
-
-    function handleKeyUp(e) {
-      keyMap.current[e.key.toLowerCase()] = false;
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [gameState, stage, assembleLevel]);
-
-  // Touch & Pointer Direct Targeting
-  function handlePointer(e) {
-    const canvas = canvasRef.current;
-    if (!canvas || !simRef.current || gameState !== "playing") return;
-    const rect = canvas.getBoundingClientRect();
-    const px = ((e.clientX - rect.left) / rect.width) * viewportDim;
-    const py = ((e.clientY - rect.top) / rect.height) * viewportDim;
-    const scale = viewportDim / ARENA_WIDTH;
-    const worldX = px / scale;
-    const worldY = py / scale;
-
-    const p = simRef.current.player;
-    p.targetX = worldX;
-    p.targetY = worldY;
-    touchCoords.current = { x: worldX, y: worldY };
-  }
-
-  function handleDoubleTapDash() {
-    const p = simRef.current?.player;
-    if (p && p.dashCooldown <= 0) {
-      p.dashTimer = 0.22;
-      p.dashCooldown = 1.1;
-      playSound("dash");
-    }
-  }
-
-  // Master Engine Simulation Loop
-  useEffect(() => {
-    if (gameState !== "playing") return;
-    let animId;
-    let lastStamp = performance.now();
-
-    function triggerExplosion(s, x, y, color, count = 16) {
-      for (let i = 0; i < count; i++) {
-        s.particles.push({
-          x,
-          y,
-          vx: (Math.random() - 0.5) * 380,
-          vy: (Math.random() - 0.5) * 380,
-          life: 0.45,
-          color,
-          size: 3 + Math.random() * 4,
-        });
-      }
-    }
-
-    // Alert only the 2-3 closest tanks within hearing radius (~280px)
-    function alertNearestTanks(s, killX, killY, maxAlerts = 2, hearingRadius = 280) {
-      const candidates = [];
-      s.enemies.forEach((en) => {
-        if (!en.alive || en.state === "hunt") return;
-        const dist = Math.hypot(en.x - killX, en.y - killY);
-        if (dist <= hearingRadius) {
-          candidates.push({ tank: en, dist });
-        }
-      });
-
-      candidates.sort((a, b) => a.dist - b.dist);
-      const targets = candidates.slice(0, maxAlerts);
-      targets.forEach((item) => {
-        item.tank.alertToSound(killX, killY);
-      });
-    }
-
-    function step(dt) {
-      const s = simRef.current;
-      if (!s) return;
-      const p = s.player;
-      const map = s.map;
-      const keys = keyMap.current;
-
-      // 1. High Velocity Smooth Player Movement
-      let moveX = 0;
-      let moveY = 0;
-      if (keys["w"] || keys["arrowup"]) moveY -= 1;
-      if (keys["s"] || keys["arrowdown"]) moveY += 1;
-      if (keys["a"] || keys["arrowleft"]) moveX -= 1;
-      if (keys["d"] || keys["arrowright"]) moveX += 1;
-
-      if (p.dashTimer > 0) p.dashTimer -= dt;
-      if (p.dashCooldown > 0) p.dashCooldown -= dt;
-      if (p.recoil > 0) p.recoil = Math.max(0, p.recoil - dt * 25);
-
-      const activeSpeed = p.dashTimer > 0 ? p.dashSpeed : p.speed;
-      let isMoving = false;
-
-      if (moveX !== 0 || moveY !== 0) {
-        const moveRad = Math.atan2(moveY, moveX);
-        p.angle = moveRad;
-        const res = tryMoveWithSlide(
-          p.x,
-          p.y,
-          Math.cos(moveRad) * activeSpeed * dt,
-          Math.sin(moveRad) * activeSpeed * dt,
-          PLAYER_RADIUS,
-          map.obstacles
-        );
-        p.x = res.x;
-        p.y = res.y;
-        p.targetX = p.x;
-        p.targetY = p.y;
-        isMoving = res.moved;
-      } else {
-        const dist = Math.hypot(p.targetX - p.x, p.targetY - p.y);
-        if (dist > 8) {
-          const moveRad = Math.atan2(p.targetY - p.y, p.targetX - p.x);
-          p.angle = moveRad;
-          const stepDist = Math.min(activeSpeed * dt, dist);
-          const res = tryMoveWithSlide(
-            p.x,
-            p.y,
-            Math.cos(moveRad) * stepDist,
-            Math.sin(moveRad) * stepDist,
-            PLAYER_RADIUS,
-            map.obstacles
-          );
-          p.x = res.x;
-          p.y = res.y;
-          isMoving = res.moved;
-        }
-      }
-
-      if (isMoving && Math.random() < 0.35) {
-        s.treadTracks.push({ x: p.x, y: p.y, angle: p.angle, life: 2.5 });
-      }
-
-      // 2. Ambush Check (Stealth Takedown)
-      s.enemies.forEach((en) => {
-        if (!en.alive) return;
-        const dist = Math.hypot(p.x - en.x, p.y - en.y);
-        const ambushDist = en.radius + PLAYER_RADIUS + 14;
-
-        if (dist < ambushDist) {
-          en.hp -= 1;
-          p.recoil = 8;
-          cameraShake.current = Math.min(cameraShake.current + 8, 14);
-
-          // Alert only 2-3 closest tanks to investigate the murder sound
-          alertNearestTanks(s, en.x, en.y, 2, 300);
-
-          if (en.hp <= 0) {
-            en.alive = false;
-            setCredits((c) => c + (en.isBoss ? 500 : 100));
-            playSound("kill");
-            triggerExplosion(
-              s,
-              en.x,
-              en.y,
-              en.isBoss ? "#d97706" : en.variant === "rust" ? "#ea580c" : "#dc2626",
-              en.isBoss ? 32 : 18
-            );
-          } else {
-            playSound("shot");
-            triggerExplosion(s, en.x, en.y, "#f59e0b", 10);
-          }
-        }
-      });
-
-      // 3. Update Enemy AI Squad
-      s.enemies.forEach((en) => {
-        en.update(dt, p, map.obstacles, (shell) => {
-          s.shells.push({ ...shell, life: 1.5 });
-          // Gunshot sound alerts 2 closest tanks
-          alertNearestTanks(s, shell.x, shell.y, 2, 280);
-        });
-      });
-
-      // 4. Update Shells
-      s.shells = s.shells.filter((sh) => {
-        const nx = sh.x + sh.vx * dt;
-        const ny = sh.y + sh.vy * dt;
-
-        for (let o = 0; o < map.obstacles.length; o++) {
-          const ob = map.obstacles[o];
-          if (nx >= ob.x && nx <= ob.x + ob.w && ny >= ob.y && ny <= ob.y + ob.h) {
-            triggerExplosion(s, nx, ny, "#f59e0b", 6);
-            return false;
-          }
-        }
-
-        sh.x = nx;
-        sh.y = ny;
-        sh.life -= dt;
-        if (sh.life <= 0 || nx < 0 || nx > ARENA_WIDTH || ny < 0 || ny > ARENA_HEIGHT) {
-          return false;
-        }
-
-        // Direct hit on player
-        if (Math.hypot(sh.x - p.x, sh.y - p.y) < PLAYER_RADIUS) {
-          p.alive = false;
-          triggerExplosion(s, p.x, p.y, "#38bdf8", 24);
-          cameraShake.current = 18;
-          playSound("lose");
-          setGameState("defeated");
-          return false;
-        }
-        return true;
-      });
-
-      // 5. Particles
-      s.particles = s.particles.filter((pt) => {
-        pt.x += pt.vx * dt;
-        pt.y += pt.vy * dt;
-        pt.life -= dt;
-        return pt.life > 0;
-      });
-
-      s.treadTracks = s.treadTracks.filter((tr) => {
-        tr.life -= dt;
-        return tr.life > 0;
-      });
-
-      cameraShake.current = Math.max(0, cameraShake.current - dt * 20);
-
-      const livingSquad = s.enemies.filter((e) => e.alive);
-      setHudState({
-        remaining: livingSquad.length,
-        total: s.enemies.length,
-        isBoss: s.enemies.some((e) => e.isBoss && e.alive),
-        theme: map.theme,
-      });
-
-      if (livingSquad.length === 0) {
-        playSound("win");
-        setGameState("victory");
-      }
-    }
-
-    // Realistic Render Function for Military Tanks
-    function drawRealisticTank(ctx, tank, isPlayer = false) {
-      const r = tank.radius;
-      ctx.save();
-      ctx.translate(tank.x, tank.y);
-      ctx.rotate(tank.angle);
-
-      // 1. Treads / Tracks
-      ctx.fillStyle = "#0c1017";
-      ctx.fillRect(-r * 1.15, -r * 0.95, r * 2.3, r * 0.42);
-      ctx.fillRect(-r * 1.15, r * 0.53, r * 2.3, r * 0.42);
-
-      // Track Segments / Wheels
-      ctx.fillStyle = "#1e293b";
-      for (let w = -r * 0.9; w <= r * 0.9; w += r * 0.45) {
-        ctx.fillRect(w - 2, -r * 0.92, 4, r * 0.36);
-        ctx.fillRect(w - 2, r * 0.56, 4, r * 0.36);
-      }
-
-      // 2. Armored Hull
-      let hullMainColor = "#0284c7";
-      let hullHighlight = "#38bdf8";
-      let turretColor = "#0369a1";
-
-      if (!isPlayer) {
-        if (tank.isBoss) {
-          hullMainColor = "#78350f";
-          hullHighlight = "#d97706";
-          turretColor = "#92400e";
-        } else if (tank.variant === "rust") {
-          hullMainColor = "#9a3412";
-          hullHighlight = "#ea580c";
-          turretColor = "#c2410c";
-        } else {
-          hullMainColor = "#991b1b";
-          hullHighlight = "#ef4444";
-          turretColor = "#b91c1c";
-        }
-      }
-
-      // Main Hull Body
-      ctx.fillStyle = hullMainColor;
-      ctx.fillRect(-r * 0.9, -r * 0.65, r * 1.8, r * 1.3);
-
-      // Armor Panel Inset
-      ctx.strokeStyle = "rgba(0, 0, 0, 0.4)";
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(-r * 0.9, -r * 0.65, r * 1.8, r * 1.3);
-
-      // Camo Front Slant
-      ctx.fillStyle = hullHighlight;
-      ctx.beginPath();
-      ctx.moveTo(r * 0.5, -r * 0.5);
-      ctx.lineTo(r * 0.85, 0);
-      ctx.lineTo(r * 0.5, r * 0.5);
-      ctx.closePath();
-      ctx.fill();
-
-      // 3. Turret with Recoil & Muzzle Brake
-      const recoilOffset = tank.recoil || 0;
-      ctx.fillStyle = turretColor;
-      ctx.fillRect(0 - recoilOffset, -r * 0.16, r * 1.55, r * 0.32);
-
-      // Muzzle Brake
-      ctx.fillStyle = "#0f172a";
-      ctx.fillRect(r * 1.4 - recoilOffset, -r * 0.22, r * 0.25, r * 0.44);
-
-      // Turret Dome
-      ctx.fillStyle = hullMainColor;
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-      ctx.lineWidth = 1.2;
-      ctx.stroke();
-
-      // Commander Hatch
-      ctx.fillStyle = "#0f172a";
-      ctx.beginPath();
-      ctx.arc(-r * 0.15, 0, r * 0.24, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.restore();
-
-      // Hunter Assassin State Icons
-      if (!isPlayer && tank.alive) {
-        if (tank.state === "hunt") {
-          ctx.save();
-          ctx.translate(tank.x, tank.y - tank.radius - 16);
-          ctx.fillStyle = "#ef4444";
-          ctx.font = "bold 18px monospace";
-          ctx.textAlign = "center";
-          ctx.fillText("!", 0, 0);
-          ctx.restore();
-        } else if (tank.state === "investigate") {
-          ctx.save();
-          ctx.translate(tank.x, tank.y - tank.radius - 16);
-          ctx.fillStyle = "#facc15";
-          ctx.font = "bold 18px monospace";
-          ctx.textAlign = "center";
-          ctx.fillText("?", 0, 0);
-          ctx.restore();
-        }
-
-        // Boss Health Gauge
-        if (tank.isBoss && tank.maxHp > 1) {
-          const bw = 54;
-          const bh = 5;
-          ctx.fillStyle = "rgba(0,0,0,0.8)";
-          ctx.fillRect(tank.x - bw / 2, tank.y - tank.radius - 24, bw, bh);
-          ctx.fillStyle = "#f59e0b";
-          ctx.fillRect(tank.x - bw / 2, tank.y - tank.radius - 24, bw * (tank.hp / tank.maxHp), bh);
-        }
-      }
-    }
-
-    // High-Definition Canvas Render Pass
-    function render() {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      const s = simRef.current;
-      if (!s) return;
-
-      const scale = viewportDim / ARENA_WIDTH;
-      const sx = (Math.random() - 0.5) * cameraShake.current;
-      const sy = (Math.random() - 0.5) * cameraShake.current;
-
-      ctx.save();
-      ctx.fillStyle = s.map.bg;
-      ctx.fillRect(0, 0, viewportDim, viewportDim);
-
-      ctx.translate(sx, sy);
-      ctx.scale(scale, scale);
-
-      // Grid Pattern
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
-      ctx.lineWidth = 1;
-      for (let g = 0; g < ARENA_WIDTH; g += 40) {
-        ctx.beginPath();
-        ctx.moveTo(g, 0);
-        ctx.lineTo(g, ARENA_HEIGHT);
-        ctx.moveTo(0, g);
-        ctx.lineTo(ARENA_WIDTH, g);
-        ctx.stroke();
-      }
-
-      // Ground Tread Impressions
-      s.treadTracks.forEach((tr) => {
+      draw(ctx) {
         ctx.save();
-        ctx.translate(tr.x, tr.y);
-        ctx.rotate(tr.angle);
-        ctx.fillStyle = `rgba(0, 0, 0, ${tr.life * 0.15})`;
-        ctx.fillRect(-12, -14, 24, 4);
-        ctx.fillRect(-12, 10, 24, 4);
-        ctx.restore();
-      });
-
-      // Vision Cones (Soft Volumetric Glow)
-      s.enemies.forEach((en) => {
-        if (!en.alive) return;
-        const rayCount = 26;
-        const startA = en.turretAngle - en.visionFov / 2;
-        const stepA = en.visionFov / rayCount;
-
+        const alpha = Math.max(this.life / this.maxLife, 0);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.moveTo(en.x, en.y);
-        for (let r = 0; r <= rayCount; r++) {
-          const a = startA + r * stepA;
-          const hit = castVisionRay(en.x, en.y, a, en.visionRange, s.map.obstacles);
-          ctx.lineTo(hit.x, hit.y);
+        ctx.arc(this.pos.x, this.pos.y, this.size * (this.type === 'blood' ? 1 : alpha), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    class Bullet {
+      constructor(x, y, angle) {
+        this.pos = new Vec2(x, y);
+        this.speed = 460;
+        this.vel = new Vec2(Math.cos(angle) * this.speed, Math.sin(angle) * this.speed);
+        this.radius = 3;
+        this.isDead = false;
+      }
+
+      update(dt, walls, player) {
+        const nextPos = new Vec2(this.pos.x + this.vel.x * dt, this.pos.y + this.vel.y * dt);
+
+        // Wall collision
+        for (let wall of walls) {
+          if (lineIntersects(this.pos, nextPos, {x: wall.x, y: wall.y}, {x: wall.x + wall.w, y: wall.y}) ||
+              lineIntersects(this.pos, nextPos, {x: wall.x + wall.w, y: wall.y}, {x: wall.x + wall.w, y: wall.y + wall.h}) ||
+              lineIntersects(this.pos, nextPos, {x: wall.x + wall.w, y: wall.y + wall.h}, {x: wall.x, y: wall.y + wall.h}) ||
+              lineIntersects(this.pos, nextPos, {x: wall.x, y: wall.y + wall.h}, {x: wall.x, y: wall.y})) {
+            this.isDead = true;
+            return;
+          }
+        }
+
+        // Player collision
+        if (nextPos.dist(player.pos) < player.radius + this.radius) {
+          player.takeDamage(25);
+          this.isDead = true;
+          return;
+        }
+
+        this.pos = nextPos;
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.fillStyle = '#ffea00';
+        ctx.shadowColor = '#ffaa00';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(this.pos.x, this.pos.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    class Gem {
+      constructor(x, y) {
+        this.pos = new Vec2(x, y);
+        this.radius = 8;
+        this.collected = false;
+        this.bobble = Math.random() * Math.PI * 2;
+      }
+
+      update(dt, player) {
+        this.bobble += dt * 4;
+        if (!this.collected && this.pos.dist(player.pos) < player.radius + this.radius + 8) {
+          this.collected = true;
+          sound.playGem();
+        }
+      }
+
+      draw(ctx) {
+        ctx.save();
+        const yOff = Math.sin(this.bobble) * 3;
+        ctx.translate(this.pos.x, this.pos.y + yOff);
+        
+        ctx.fillStyle = '#ffd700';
+        ctx.shadowColor = '#ffea00';
+        ctx.shadowBlur = 10;
+        
+        ctx.beginPath();
+        ctx.moveTo(0, -this.radius);
+        ctx.lineTo(this.radius, 0);
+        ctx.lineTo(0, this.radius);
+        ctx.lineTo(-this.radius, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    /* ==========================================================================
+       ACTORS (PLAYER & GUARDS)
+       ========================================================================== */
+    class Player {
+      constructor(x, y) {
+        this.pos = new Vec2(x, y);
+        this.target = new Vec2(x, y);
+        this.angle = 0;
+        this.speed = 190;
+        this.radius = 14;
+        this.maxHealth = 100;
+        this.health = 100;
+        this.stepDistance = 0;
+      }
+
+      reset(x, y) {
+        this.pos.set(x, y);
+        this.target.set(x, y);
+        this.health = this.maxHealth;
+        this.angle = 0;
+      }
+
+      setTarget(x, y) {
+        this.target.set(x, y);
+      }
+
+      takeDamage(amount) {
+        this.health = Math.max(0, this.health - amount);
+        updateHUD();
+      }
+
+      update(dt, walls) {
+        const dist = this.pos.dist(this.target);
+        if (dist > 2) {
+          const dir = this.target.clone().sub(this.pos).normalize();
+          this.angle = dir.angle();
+
+          const moveStep = dir.mult(this.speed * dt);
+          
+          // Collision resolution (X and Y decoupled for smooth sliding)
+          let nextX = this.pos.x + moveStep.x;
+          let collideX = false;
+          for (let w of walls) {
+            if (circleRectCollide(nextX, this.pos.y, this.radius, w.x, w.y, w.w, w.h)) {
+              collideX = true;
+              break;
+            }
+          }
+          if (!collideX) this.pos.x = nextX;
+
+          let nextY = this.pos.y + moveStep.y;
+          let collideY = false;
+          for (let w of walls) {
+            if (circleRectCollide(this.pos.x, nextY, this.radius, w.x, w.y, w.w, w.h)) {
+              collideY = true;
+              break;
+            }
+          }
+          if (!collideY) this.pos.y = nextY;
+
+          // Sound trigger for steps
+          this.stepDistance += moveStep.mag();
+          if (this.stepDistance > 35) {
+            sound.playStep();
+            this.stepDistance = 0;
+          }
+        }
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.pos.x, this.pos.y);
+        ctx.rotate(this.angle);
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.arc(2, 2, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Character Body (Infiltrator Outfit)
+        ctx.fillStyle = '#00d4ff';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Shoulders / Arms
+        ctx.fillStyle = '#0088aa';
+        ctx.beginPath();
+        ctx.arc(0, -this.radius + 3, 4, 0, Math.PI * 2);
+        ctx.arc(0, this.radius - 3, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Head / Mask
+        ctx.fillStyle = '#0a1018';
+        ctx.beginPath();
+        ctx.arc(-2, 0, this.radius - 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Visor glow
+        ctx.strokeStyle = '#38e1ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(2, 0, 4, -Math.PI / 2, Math.PI / 2);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+
+    class Guard {
+      constructor(x, y, waypoints) {
+        this.pos = new Vec2(x, y);
+        this.waypoints = waypoints.map(w => new Vec2(w.x, w.y));
+        this.currentWpIndex = 0;
+        this.angle = 0;
+        this.targetAngle = 0;
+        this.speed = 85;
+        this.chaseSpeed = 135;
+        this.radius = 14;
+        
+        this.state = 'PATROL'; // PATROL, ALERT, SEARCH
+        this.alertTimer = 0;
+        this.shootCooldown = 0;
+        this.fovAngle = (65 * Math.PI) / 180;
+        this.viewDistance = 220;
+        this.lastKnownPos = null;
+        this.isDead = false;
+      }
+
+      update(dt, walls, player, bullets, particles, guards) {
+        if (this.isDead) return;
+
+        if (this.shootCooldown > 0) this.shootCooldown -= dt;
+
+        // Line-of-sight and vision check
+        const canSeePlayer = this.checkVision(player, walls);
+
+        if (canSeePlayer) {
+          if (this.state !== 'ALERT') {
+            sound.playAlert();
+            this.state = 'ALERT';
+            // Alert nearby guards
+            guards.forEach(g => {
+              if (g !== this && !g.isDead && g.pos.dist(this.pos) < 260) {
+                g.triggerExternalAlert(player.pos);
+              }
+            });
+          }
+          this.lastKnownPos = player.pos.clone();
+          this.targetAngle = player.pos.clone().sub(this.pos).angle();
+          
+          // Fire at player
+          if (this.shootCooldown <= 0) {
+            bullets.push(new Bullet(this.pos.x, this.pos.y, this.angle));
+            sound.playGunshot();
+            this.shootCooldown = 0.6; // Rate of fire
+
+            // Muzzle flash particle
+            for (let i = 0; i < 4; i++) {
+              particles.push(new Particle(
+                this.pos.x + Math.cos(this.angle) * 20,
+                this.pos.y + Math.sin(this.angle) * 20,
+                '#ffea00',
+                120,
+                3,
+                0.1
+              ));
+            }
+          }
+        } else if (this.state === 'ALERT') {
+          this.state = 'SEARCH';
+          this.alertTimer = 3.5; // Search duration
+        }
+
+        // Behavior State Machine
+        if (this.state === 'ALERT') {
+          // Approach player
+          this.moveTo(player.pos, this.chaseSpeed, dt, walls);
+        } else if (this.state === 'SEARCH') {
+          this.alertTimer -= dt;
+          if (this.lastKnownPos) {
+            this.moveTo(this.lastKnownPos, this.speed, dt, walls);
+            if (this.pos.dist(this.lastKnownPos) < 10) {
+              this.lastKnownPos = null;
+            }
+          } else {
+            this.targetAngle += dt * 2.5; // Look around
+          }
+
+          if (this.alertTimer <= 0) {
+            this.state = 'PATROL';
+          }
+        } else {
+          // PATROL
+          const targetWp = this.waypoints[this.currentWpIndex];
+          this.moveTo(targetWp, this.speed, dt, walls);
+          if (this.pos.dist(targetWp) < 10) {
+            this.currentWpIndex = (this.currentWpIndex + 1) % this.waypoints.length;
+          }
+        }
+
+        // Smooth rotation
+        let diff = this.targetAngle - this.angle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        this.angle += diff * Math.min(dt * 8, 1);
+      }
+
+      moveTo(targetPos, speed, dt, walls) {
+        const dir = targetPos.clone().sub(this.pos);
+        if (dir.mag() > 2) {
+          dir.normalize();
+          this.targetAngle = dir.angle();
+
+          const moveStep = dir.mult(speed * dt);
+
+          let nextX = this.pos.x + moveStep.x;
+          let collideX = false;
+          for (let w of walls) {
+            if (circleRectCollide(nextX, this.pos.y, this.radius, w.x, w.y, w.w, w.h)) {
+              collideX = true;
+              break;
+            }
+          }
+          if (!collideX) this.pos.x = nextX;
+
+          let nextY = this.pos.y + moveStep.y;
+          let collideY = false;
+          for (let w of walls) {
+            if (circleRectCollide(this.pos.x, nextY, this.radius, w.x, w.y, w.w, w.h)) {
+              collideY = true;
+              break;
+            }
+          }
+          if (!collideY) this.pos.y = nextY;
+        }
+      }
+
+      triggerExternalAlert(pos) {
+        if (this.state !== 'ALERT') {
+          this.state = 'SEARCH';
+          this.lastKnownPos = pos.clone();
+          this.alertTimer = 4.0;
+        }
+      }
+
+      checkVision(player, walls) {
+        const toPlayer = player.pos.clone().sub(this.pos);
+        const dist = toPlayer.mag();
+
+        if (dist > this.viewDistance) return false;
+
+        const angleToPlayer = toPlayer.angle();
+        let angleDiff = angleToPlayer - this.angle;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+
+        if (Math.abs(angleDiff) > this.fovAngle / 2) return false;
+
+        // Line-of-sight raycast against walls
+        for (let w of walls) {
+          const lines = [
+            [{x: w.x, y: w.y}, {x: w.x + w.w, y: w.y}],
+            [{x: w.x + w.w, y: w.y}, {x: w.x + w.w, y: w.y + w.h}],
+            [{x: w.x + w.w, y: w.y + w.h}, {x: w.x, y: w.y + w.h}],
+            [{x: w.x, y: w.y + w.h}, {x: w.x, y: w.y}]
+          ];
+          for (let line of lines) {
+            if (lineIntersects(this.pos, player.pos, line[0], line[1])) {
+              return false;
+            }
+          }
+        }
+
+        return true;
+      }
+
+      drawVisionCone(ctx, walls) {
+        if (this.isDead) return;
+
+        ctx.save();
+        const rayCount = 40;
+        const startAngle = this.angle - this.fovAngle / 2;
+        const angleStep = this.fovAngle / rayCount;
+        const points = [this.pos];
+
+        for (let i = 0; i <= rayCount; i++) {
+          const currentAngle = startAngle + i * angleStep;
+          const rayEnd = new Vec2(
+            this.pos.x + Math.cos(currentAngle) * this.viewDistance,
+            this.pos.y + Math.sin(currentAngle) * this.viewDistance
+          );
+
+          let closestHit = rayEnd;
+          let minDst = this.viewDistance;
+
+          for (let w of walls) {
+            const lines = [
+              [{x: w.x, y: w.y}, {x: w.x + w.w, y: w.y}],
+              [{x: w.x + w.w, y: w.y}, {x: w.x + w.w, y: w.y + w.h}],
+              [{x: w.x + w.w, y: w.y + w.h}, {x: w.x, y: w.y + w.h}],
+              [{x: w.x, y: w.y + w.h}, {x: w.x, y: w.y}]
+            ];
+            for (let line of lines) {
+              const hit = lineIntersects(this.pos, rayEnd, line[0], line[1]);
+              if (hit) {
+                const dst = this.pos.dist(hit);
+                if (dst < minDst) {
+                  minDst = dst;
+                  closestHit = hit;
+                }
+              }
+            }
+          }
+          points.push(closestHit);
+        }
+
+        // Fill vision cone with soft lighting gradient
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
         }
         ctx.closePath();
 
-        const grad = ctx.createRadialGradient(en.x, en.y, 10, en.x, en.y, en.visionRange);
-        if (en.state === "hunt") {
-          grad.addColorStop(0, "rgba(239, 68, 68, 0.35)");
-          grad.addColorStop(1, "rgba(239, 68, 68, 0.0)");
-        } else if (en.state === "investigate") {
-          grad.addColorStop(0, "rgba(250, 204, 21, 0.25)");
-          grad.addColorStop(1, "rgba(250, 204, 21, 0.0)");
-        } else {
-          grad.addColorStop(0, "rgba(255, 255, 255, 0.12)");
-          grad.addColorStop(1, "rgba(255, 255, 255, 0.0)");
-        }
-        ctx.fillStyle = grad;
+        let coneColor = 'rgba(255, 230, 100, 0.15)';
+        if (this.state === 'ALERT') coneColor = 'rgba(255, 50, 50, 0.35)';
+        if (this.state === 'SEARCH') coneColor = 'rgba(255, 150, 0, 0.25)';
+
+        ctx.fillStyle = coneColor;
         ctx.fill();
-      });
 
-      // Hard Cover Barricades
-      s.map.obstacles.forEach((ob) => {
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fillRect(ob.x + 6, ob.y + 6, ob.w, ob.h);
+        // Edge stroke for higher visual fidelity
+        ctx.strokeStyle = this.state === 'ALERT' ? 'rgba(255, 50, 50, 0.5)' : 'rgba(255, 230, 100, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
 
-        ctx.fillStyle = s.map.wallColor;
-        ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
-
-        ctx.strokeStyle = s.map.wallBorder;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(ob.x, ob.y, ob.w, ob.h);
-      });
-
-      // Projectiles
-      s.shells.forEach((sh) => {
-        ctx.save();
-        ctx.fillStyle = sh.isBoss ? "#f59e0b" : "#ef4444";
-        ctx.beginPath();
-        ctx.arc(sh.x, sh.y, sh.isBoss ? 5.5 : 3.5, 0, Math.PI * 2);
-        ctx.fill();
         ctx.restore();
-      });
-
-      // Particles
-      s.particles.forEach((pt) => {
-        ctx.save();
-        ctx.fillStyle = pt.color;
-        ctx.globalAlpha = Math.max(0, pt.life / 0.45);
-        ctx.fillRect(pt.x, pt.y, pt.size, pt.size);
-        ctx.restore();
-      });
-
-      // Render Enemy Tanks
-      s.enemies.forEach((en) => {
-        if (!en.alive) return;
-        drawRealisticTank(ctx, en, false);
-      });
-
-      // Render Player Blue Assassin Tank
-      if (s.player.alive) {
-        drawRealisticTank(ctx, s.player, true);
       }
 
-      ctx.restore();
+      draw(ctx) {
+        if (this.isDead) return;
+
+        ctx.save();
+        ctx.translate(this.pos.x, this.pos.y);
+        ctx.rotate(this.angle);
+
+        // Body base
+        ctx.fillStyle = this.state === 'ALERT' ? '#ff3366' : (this.state === 'SEARCH' ? '#ff9900' : '#8b949e');
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Weapon barrel
+        ctx.fillStyle = '#21262d';
+        ctx.fillRect(4, -3, 14, 6);
+
+        // Head/Helmet
+        ctx.fillStyle = '#161b22';
+        ctx.beginPath();
+        ctx.arc(-1, 0, this.radius - 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
     }
 
-    function gameLoop(now) {
-      const dt = Math.min((now - lastStamp) / 1000, 0.05);
-      lastStamp = now;
-      step(dt);
-      render();
-      animId = requestAnimationFrame(gameLoop);
+    /* ==========================================================================
+       GAME ENGINE & STATE MANAGEMENT
+       ========================================================================== */
+    class GameEngine {
+      constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        
+        this.width = 900;
+        this.height = 600;
+        this.scale = 1;
+
+        this.currentLevelIndex = 0;
+        this.gemsCollected = 0;
+        this.gameState = 'MENU'; // MENU, PLAYING, GAMEOVER, VICTORY
+
+        this.walls = [];
+        this.guards = [];
+        this.bullets = [];
+        this.particles = [];
+        this.gems = [];
+
+        this.player = new Player(0, 0);
+
+        this.lastTime = 0;
+        this.initCanvas();
+        this.bindEvents();
+      }
+
+      initCanvas() {
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+      }
+
+      resize() {
+        const containerW = window.innerWidth;
+        const containerH = window.innerHeight;
+
+        const scaleX = containerW / this.width;
+        const scaleY = containerH / this.height;
+        this.scale = Math.min(scaleX, scaleY) * 0.95;
+
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        this.canvas.style.width = `${this.width * this.scale}px`;
+        this.canvas.style.height = `${this.height * this.scale}px`;
+      }
+
+      bindEvents() {
+        const handlePointer = (e) => {
+          if (this.gameState !== 'PLAYING') return;
+
+          const rect = this.canvas.getBoundingClientRect();
+          const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+          const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+          const x = (clientX - rect.left) / this.scale;
+          const y = (clientY - rect.top) / this.scale;
+
+          this.player.setTarget(x, y);
+
+          // Tap indicator visual
+          for (let i = 0; i < 6; i++) {
+            this.particles.push(new Particle(x, y, '#00d4ff', 80, 2, 0.25));
+          }
+        };
+
+        this.canvas.addEventListener('mousedown', handlePointer);
+        this.canvas.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          handlePointer(e);
+        }, { passive: false });
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+          sound.init();
+          this.hideModals();
+          this.loadLevel(0);
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+          this.hideModals();
+          this.loadLevel(this.currentLevelIndex);
+        });
+
+        document.getElementById('next-btn').addEventListener('click', () => {
+          this.hideModals();
+          if (this.currentLevelIndex + 1 < LEVEL_DATA.length) {
+            this.loadLevel(this.currentLevelIndex + 1);
+          } else {
+            this.loadLevel(0); // Loop back
+          }
+        });
+      }
+
+      hideModals() {
+        document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+      }
+
+      loadLevel(index) {
+        this.currentLevelIndex = index;
+        const data = LEVEL_DATA[index];
+
+        this.walls = data.walls;
+        this.guards = data.guards.map(g => new Guard(g.x, g.y, g.waypoints));
+        this.player.reset(data.playerStart.x, data.playerStart.y);
+        
+        this.bullets = [];
+        this.particles = [];
+        this.gems = [];
+
+        this.gameState = 'PLAYING';
+        updateHUD();
+      }
+
+      spawnBloodSplatter(x, y) {
+        for (let i = 0; i < 35; i++) {
+          this.particles.push(new Particle(x, y, '#ff1a4a', 180, Math.random() * 3 + 2, Math.random() * 0.8 + 0.4, 'blood'));
+        }
+      }
+
+      update(dt) {
+        if (this.gameState !== 'PLAYING') return;
+
+        this.player.update(dt, this.walls);
+
+        // Update Gems
+        this.gems.forEach(g => {
+          const wasCollected = g.collected;
+          g.update(dt, this.player);
+          if (!wasCollected && g.collected) {
+            this.gemsCollected += 10;
+            updateHUD();
+          }
+        });
+        this.gems = this.gems.filter(g => !g.collected);
+
+        // Update Bullets
+        this.bullets.forEach(b => b.update(dt, this.walls, this.player));
+        this.bullets = this.bullets.filter(b => !b.isDead);
+
+        // Update Guards & check Takedowns
+        let aliveGuardsCount = 0;
+        this.guards.forEach(guard => {
+          if (!guard.isDead) {
+            guard.update(dt, this.walls, this.player, this.bullets, this.particles, this.guards);
+            
+            // Stealth Assassination Check
+            const dist = this.player.pos.dist(guard.pos);
+            if (dist < this.player.radius + guard.radius + 6) {
+              // Execute Kill
+              guard.isDead = true;
+              sound.playStab();
+              this.spawnBloodSplatter(guard.pos.x, guard.pos.y);
+              this.gems.push(new Gem(guard.pos.x, guard.pos.y));
+              updateHUD();
+            } else {
+              aliveGuardsCount++;
+            }
+          }
+        });
+
+        // Update Particles
+        this.particles.forEach(p => p.update(dt));
+        this.particles = this.particles.filter(p => p.life > 0);
+
+        // Condition: Player Died
+        if (this.player.health <= 0) {
+          this.gameState = 'GAMEOVER';
+          document.getElementById('gameover-modal').classList.add('active');
+        }
+
+        // Condition: Level Cleared
+        if (aliveGuardsCount === 0 && this.gameState === 'PLAYING') {
+          this.gameState = 'VICTORY';
+          sound.playVictory();
+          const desc = document.getElementById('victory-desc');
+          if (this.currentLevelIndex + 1 < LEVEL_DATA.length) {
+            desc.innerText = `Sector ${this.currentLevelIndex + 1} cleared! Prepare for the next mission.`;
+          } else {
+            desc.innerText = `All black-ops sectors neutralized! Operation Complete.`;
+          }
+          document.getElementById('victory-modal').classList.add('active');
+        }
+      }
+
+      draw() {
+        this.ctx.clearRect(0, 0, this.width, this.height);
+
+        // Base Floor Grid Texture
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+        this.ctx.lineWidth = 1;
+        const gridSize = 40;
+        for (let x = 0; x < this.width; x += gridSize) {
+          this.ctx.beginPath();
+          this.ctx.moveTo(x, 0);
+          this.ctx.lineTo(x, this.height);
+          this.ctx.stroke();
+        }
+        for (let y = 0; y < this.height; y += gridSize) {
+          this.ctx.beginPath();
+          this.ctx.moveTo(0, y);
+          this.ctx.lineTo(this.width, y);
+          this.ctx.stroke();
+        }
+
+        // Draw Blood/Ground Particles first
+        this.particles.filter(p => p.type === 'blood').forEach(p => p.draw(this.ctx));
+
+        // Draw Vision Cones
+        this.guards.forEach(g => g.drawVisionCone(this.ctx, this.walls));
+
+        // Draw Walls & Obstacles
+        this.walls.forEach(w => {
+          // Drop Shadow
+          this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+          this.ctx.fillRect(w.x + 4, w.y + 4, w.w, w.h);
+
+          // Wall Body
+          this.ctx.fillStyle = '#161b22';
+          this.ctx.fillRect(w.x, w.y, w.w, w.h);
+
+          // Top Border highlight
+          this.ctx.strokeStyle = '#30363d';
+          this.ctx.lineWidth = 2;
+          this.ctx.strokeRect(w.x, w.y, w.w, w.h);
+        });
+
+        // Draw Gems
+        this.gems.forEach(g => g.draw(this.ctx));
+
+        // Draw Actors
+        this.guards.forEach(g => g.draw(this.ctx));
+        if (this.player.health > 0) {
+          this.player.draw(this.ctx);
+        }
+
+        // Draw Bullets & Standard FX Particles
+        this.bullets.forEach(b => b.draw(this.ctx));
+        this.particles.filter(p => p.type !== 'blood').forEach(p => p.draw(this.ctx));
+      }
+
+      start() {
+        const loop = (timestamp) => {
+          if (!this.lastTime) this.lastTime = timestamp;
+          const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1);
+          this.lastTime = timestamp;
+
+          this.update(dt);
+          this.draw();
+
+          requestAnimationFrame(loop);
+        };
+        requestAnimationFrame(loop);
+      }
     }
 
-    animId = requestAnimationFrame(gameLoop);
-    return () => cancelAnimationFrame(animId);
-  }, [gameState, viewportDim]);
+    /* ==========================================================================
+       HUD SYNCHRONIZATION
+       ========================================================================== */
+    const game = new GameEngine();
 
-  return (
-    <div className="hunter-strike-container" ref={rootRef}>
-      <style>{`
-        .hunter-strike-container {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
-          background: #030509;
-          padding: 14px;
-          border-radius: 14px;
-          color: #f8fafc;
-          user-select: none;
-          touch-action: none;
-          width: 100%;
-          max-width: 780px;
-          margin: 0 auto;
-        }
-        .header-bar {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          width: 100%;
-          padding: 10px 18px;
-          margin-bottom: 8px;
-          background: #090d16;
-          border: 1px solid #1a2336;
-          border-radius: 8px;
-          font-weight: 800;
-          font-size: 13px;
-        }
-        .stage-title { color: #38bdf8; }
-        .theme-name { color: #94a3b8; font-size: 11px; text-transform: uppercase; }
-        .boss-tag {
-          color: #f59e0b;
-          font-weight: 900;
-          animation: pulse 0.8s infinite alternate;
-        }
-        @keyframes pulse { from { opacity: 0.5; } to { opacity: 1; } }
-        .targets-count { color: #f43f5e; }
-        .credits-tag { color: #10b981; }
-        .canvas-wrapper {
-          position: relative;
-          border: 2px solid #1a2336;
-          border-radius: 10px;
-          overflow: hidden;
-          background: #050811;
-          cursor: crosshair;
-        }
-        .screen-modal {
-          position: absolute;
-          inset: 0;
-          background: rgba(3, 5, 9, 0.92);
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          text-align: center;
-          padding: 24px;
-        }
-        .main-heading {
-          font-size: 28px;
-          font-weight: 900;
-          letter-spacing: 1.5px;
-          margin-bottom: 8px;
-        }
-        .sub-description {
-          font-size: 13px;
-          color: #94a3b8;
-          max-width: 340px;
-          margin-bottom: 22px;
-          line-height: 1.5;
-        }
-        .start-btn {
-          background: #0284c7;
-          color: #ffffff;
-          border: none;
-          padding: 12px 30px;
-          font-size: 15px;
-          font-weight: 800;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        .start-btn:hover { background: #0369a1; }
-      `}</style>
+    function updateHUD() {
+      // Health UI
+      const healthPercent = Math.max(0, (game.player.health / game.player.maxHealth) * 100);
+      const fill = document.getElementById('health-fill');
+      fill.style.width = `${healthPercent}%`;
+      if (healthPercent < 30) {
+        fill.style.backgroundColor = '#ff3366';
+      } else if (healthPercent < 60) {
+        fill.style.backgroundColor = '#ff9900';
+      } else {
+        fill.style.backgroundColor = '#00ff66';
+      }
 
-      <div className="header-bar">
-        <span className="stage-title">STAGE {stage}</span>
-        <span className="theme-name">{hudState.theme}</span>
-        {hudState.isBoss && <span className="boss-tag">⚠ HEAVY BOSS ENGAGED ⚠</span>}
-        <span className="credits-tag">${credits}</span>
-        <span className="targets-count">
-          ENEMIES: {hudState.remaining} / {hudState.total}
-        </span>
-      </div>
+      // Stats UI
+      document.getElementById('level-display').innerText = `${game.currentLevelIndex + 1}/${LEVEL_DATA.length}`;
+      const aliveGuards = game.guards.filter(g => !g.isDead).length;
+      document.getElementById('enemies-display').innerText = aliveGuards;
+      document.getElementById('gems-display').innerText = game.gemsCollected;
+    }
 
-      <div
-        className="canvas-wrapper"
-        onPointerDown={handlePointer}
-        onPointerMove={(e) => {
-          if (e.buttons === 1) handlePointer(e);
-        }}
-        onDoubleClick={handleDoubleTapDash}
-      >
-        <canvas ref={canvasRef} width={viewportDim} height={viewportDim} />
-
-        {gameState !== "playing" && (
-          <div className="screen-modal">
-            {gameState === "ready" && (
-              <>
-                <p className="main-heading" style={{ color: "#38bdf8" }}>
-                  HUNTER STRIKE: TACTICAL
-                </p>
-                <p className="sub-description">
-                  Sneak behind enemy tanks to ambush them from blind spots.
-                  <br />
-                  Nearby enemies get a <b>?</b> and rush to investigate murder sounds!
-                  <br />
-                  <b>Controls:</b> Tap/Drag or <b>WASD</b>. Press <b>Spacebar / Double Tap</b> to Dash!
-                </p>
-                <button className="start-btn" onClick={launchFirstMission}>
-                  COMMENCE OPERATION
-                </button>
-              </>
-            )}
-
-            {gameState === "victory" && (
-              <>
-                <p className="main-heading" style={{ color: "#4ade80" }}>
-                  SECTOR NEUTRALIZED!
-                </p>
-                <p className="sub-description">
-                  All targets eliminated. Advancing to <b>{getMapForLevel(stage + 1).theme}</b> with {Math.min(2 + (stage + 1), 7)} active tanks
-                  {(stage + 1) % 5 === 0 ? " and an ARMORED BOSS TANK!" : "."}
-                </p>
-                <button className="start-btn" onClick={proceedNextMission}>
-                  NEXT SECTOR ({stage + 1})
-                </button>
-              </>
-            )}
-
-            {gameState === "defeated" && (
-              <>
-                <p className="main-heading" style={{ color: "#ef4444" }}>
-                  MISSION FAILED
-                </p>
-                <p className="sub-description">
-                  You were neutralized in Stage {stage}. Restarting from current stage.
-                </p>
-                <button className="start-btn" onClick={restartCurrentMission}>
-                  RETRY STAGE {stage}
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+    // Run Engine
+    window.onload = () => {
+      game.start();
+    };
+  </script>
+</body>
+</html>
