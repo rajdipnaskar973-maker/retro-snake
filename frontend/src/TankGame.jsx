@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 const ARENA_WIDTH = 1000;
 const ARENA_HEIGHT = 1000;
 const PLAYER_RADIUS = 18;
-const BASE_FOV = Math.PI / 2.5; // ~72 degrees vision flashlight
+const BASE_FOV = Math.PI / 2.6; // ~69 degree realistic vision cone
 
 function clamp(val, min, max) {
   return Math.max(min, Math.min(max, val));
@@ -46,7 +46,7 @@ function lineIntersectsRect(x1, y1, x2, y2, rect) {
   return false;
 }
 
-// 2D Decoupled Sliding Vector Physics (Tanks never stick to walls)
+// 2D Decoupled Sliding Vector Movement
 function tryMoveWithSlide(x, y, dx, dy, radius, obstacles) {
   let finalX = x;
   let finalY = y;
@@ -78,7 +78,7 @@ function tryMoveWithSlide(x, y, dx, dy, radius, obstacles) {
   return { x: finalX, y: finalY, moved: finalX !== x || finalY !== y };
 }
 
-// Raymarching for realistic flashlight lighting occlusion
+// Raymarching for light occlusion
 function castVisionRay(ox, oy, angle, maxDist, obstacles) {
   const step = 8;
   const count = Math.floor(maxDist / step);
@@ -119,7 +119,7 @@ function getRandomOpenPoint(obstacles, minDistFromPlayer = 240) {
 }
 
 /* ==========================================================================
-   2. SYNTHESIZED WEB AUDIO FX ENGINE
+   2. SYNTHESIZED AUDIO FX ENGINE
    ========================================================================== */
 let audioCtx = null;
 function getAudioContext() {
@@ -144,9 +144,9 @@ function playSound(type) {
 
     if (type === "kill") {
       osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(420, now);
+      osc.frequency.setValueAtTime(360, now);
       osc.frequency.exponentialRampToValueAtTime(25, now + 0.35);
-      gain.gain.setValueAtTime(0.55, now);
+      gain.gain.setValueAtTime(0.5, now);
       gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -155,28 +155,38 @@ function playSound(type) {
     } else if (type === "shot") {
       osc.type = "square";
       osc.frequency.setValueAtTime(160, now);
-      osc.frequency.exponentialRampToValueAtTime(30, now + 0.2);
-      gain.gain.setValueAtTime(0.4, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      osc.frequency.exponentialRampToValueAtTime(30, now + 0.18);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.2);
+      osc.stop(now + 0.18);
     } else if (type === "alert") {
       osc.type = "sine";
-      osc.frequency.setValueAtTime(750, now);
-      osc.frequency.linearRampToValueAtTime(1150, now + 0.08);
-      osc.frequency.linearRampToValueAtTime(750, now + 0.16);
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.24);
+      osc.frequency.setValueAtTime(700, now);
+      osc.frequency.linearRampToValueAtTime(1050, now + 0.08);
+      osc.frequency.linearRampToValueAtTime(700, now + 0.16);
+      gain.gain.setValueAtTime(0.28, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.24);
+      osc.stop(now + 0.22);
+    } else if (type === "investigate") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.linearRampToValueAtTime(580, now + 0.12);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.18);
     } else if (type === "dash") {
       osc.type = "triangle";
       osc.frequency.setValueAtTime(280, now);
-      osc.frequency.exponentialRampToValueAtTime(750, now + 0.14);
+      osc.frequency.exponentialRampToValueAtTime(700, now + 0.14);
       gain.gain.setValueAtTime(0.25, now);
       gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
       osc.connect(gain);
@@ -196,13 +206,13 @@ function playSound(type) {
     } else if (type === "lose") {
       osc.type = "sawtooth";
       osc.frequency.setValueAtTime(280, now);
-      osc.frequency.exponentialRampToValueAtTime(20, now + 0.6);
-      gain.gain.setValueAtTime(0.5, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+      osc.frequency.exponentialRampToValueAtTime(20, now + 0.55);
+      gain.gain.setValueAtTime(0.45, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.55);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.6);
+      osc.stop(now + 0.55);
     }
   } catch (e) {
     // Audio safe fallback
@@ -218,7 +228,7 @@ function getMapForLevel(level) {
     case 1:
       return {
         theme: "Courtyard Infiltration",
-        bg: "#050811",
+        bg: "#060911",
         wallColor: "#151e2e",
         wallBorder: "#25344f",
         obstacles: [
@@ -240,7 +250,7 @@ function getMapForLevel(level) {
     case 2:
       return {
         theme: "Matrix Grid Sector",
-        bg: "#06090e",
+        bg: "#08070e",
         wallColor: "#1a162b",
         wallBorder: "#342852",
         obstacles: [
@@ -261,7 +271,7 @@ function getMapForLevel(level) {
     case 3:
       return {
         theme: "Labyrinth Warehouse",
-        bg: "#080608",
+        bg: "#090606",
         wallColor: "#261a1a",
         wallBorder: "#4a2c2c",
         obstacles: [
@@ -337,9 +347,10 @@ function getMapForLevel(level) {
    4. TACTICAL ENEMY AI CLASS
    ========================================================================== */
 class TacticalTankAI {
-  constructor(id, x, y, isBoss = false, level = 1) {
+  constructor(id, x, y, isBoss = false, level = 1, variant = "crimson") {
     this.id = id;
     this.isBoss = isBoss;
+    this.variant = variant; // "crimson", "rust", "boss"
     this.x = x;
     this.y = y;
     this.lastX = x;
@@ -352,8 +363,8 @@ class TacticalTankAI {
 
     this.speed = (isBoss ? 210 : 230) + Math.min(level * 10, 85);
     this.turnSpeed = 3.6 + Math.min(level * 0.18, 1.6);
-    this.visionRange = 300 + Math.min(level * 20, 150) + (isBoss ? 90 : 0);
-    this.visionFov = Math.PI / (isBoss ? 2.3 : 2.6);
+    this.visionRange = 290 + Math.min(level * 18, 130) + (isBoss ? 90 : 0);
+    this.visionFov = BASE_FOV;
 
     this.maxHp = isBoss ? 3 + Math.floor(level / 5) * 2 : 1;
     this.hp = this.maxHp;
@@ -366,7 +377,17 @@ class TacticalTankAI {
     this.recoil = 0;
   }
 
-  update(dt, player, obstacles, soundAlerts, onFireShell) {
+  // Called when nearby kill sound occurs
+  alertToSound(soundX, soundY) {
+    if (this.state !== "hunt") {
+      this.state = "investigate";
+      this.navTarget = { x: soundX, y: soundY };
+      this.retargetTimer = 4.0; // Sprint to location and search
+      playSound("investigate");
+    }
+  }
+
+  update(dt, player, obstacles, onFireShell) {
     if (!this.alive) return;
 
     if (this.fireCooldown > 0) this.fireCooldown -= dt;
@@ -382,7 +403,7 @@ class TacticalTankAI {
       lineIntersectsRect(this.x, this.y, player.x, player.y, ob)
     );
 
-    // Vision-triggered alarm
+    // Visual Detection
     if (inCone && !isBlocked) {
       if (this.state !== "hunt") {
         playSound("alert");
@@ -392,20 +413,7 @@ class TacticalTankAI {
       this.retargetTimer = 4.0;
     }
 
-    // Sound alert listener (Hunter Assassin swarm mechanic)
-    if (this.state !== "hunt") {
-      for (let i = 0; i < soundAlerts.length; i++) {
-        const s = soundAlerts[i];
-        if (Math.hypot(this.x - s.x, this.y - s.y) <= s.radius) {
-          this.state = "investigate";
-          this.navTarget = { x: s.x, y: s.y };
-          this.retargetTimer = 4.5;
-          break;
-        }
-      }
-    }
-
-    // Random wandering patrol
+    // Wandering Patrol Selection
     if (this.retargetTimer <= 0) {
       this.state = "patrol";
       this.navTarget = getRandomOpenPoint(obstacles, 0);
@@ -418,7 +426,7 @@ class TacticalTankAI {
     this.angle += Math.max(-this.turnSpeed * dt, Math.min(this.turnSpeed * dt, turnDiff));
     this.turretAngle = this.angle;
 
-    // 5-Ray Sensor Whisker Obstacle Avoidance
+    // 5-Ray Obstacle Avoidance Whiskers
     let avoidTurn = 0;
     const lookAhead = this.radius + 38;
     const sensorAngles = [-0.7, -0.35, 0, 0.35, 0.7];
@@ -442,7 +450,8 @@ class TacticalTankAI {
     this.angle += avoidTurn * dt * 4.5;
 
     // Slide Movement
-    const moveSpeed = this.speed * (this.state === "hunt" ? 1.25 : 0.95);
+    const speedMultiplier = this.state === "hunt" ? 1.3 : this.state === "investigate" ? 1.15 : 0.95;
+    const moveSpeed = this.speed * speedMultiplier;
     const vx = Math.cos(this.angle) * moveSpeed * dt;
     const vy = Math.sin(this.angle) * moveSpeed * dt;
 
@@ -450,7 +459,7 @@ class TacticalTankAI {
     this.x = res.x;
     this.y = res.y;
 
-    // Dynamic Anti-Stuck Resolver
+    // Anti-Stuck Dynamic Resolver
     const stepDist = Math.hypot(this.x - this.lastX, this.y - this.lastY);
     this.lastX = this.x;
     this.lastY = this.y;
@@ -531,11 +540,12 @@ export default function TankGame() {
     for (let i = 0; i < enemyCount; i++) {
       const spawnPt =
         mapConfig.spawnPoints[i % mapConfig.spawnPoints.length] || { x: 800, y: 200 };
-      squad.push(new TacticalTankAI(`soldier_${i}`, spawnPt.x, spawnPt.y, false, lvl));
+      const variant = i % 2 === 0 ? "crimson" : "rust";
+      squad.push(new TacticalTankAI(`soldier_${i}`, spawnPt.x, spawnPt.y, false, lvl, variant));
     }
 
     if (isBossStage) {
-      squad.push(new TacticalTankAI(`boss_${lvl}`, 500, 200, true, lvl));
+      squad.push(new TacticalTankAI(`boss_${lvl}`, 500, 200, true, lvl, "boss"));
     }
 
     simRef.current = {
@@ -557,7 +567,6 @@ export default function TankGame() {
       enemies: squad,
       shells: [],
       particles: [],
-      soundWaves: [],
       treadTracks: [],
     };
 
@@ -666,8 +675,22 @@ export default function TankGame() {
       }
     }
 
-    function emitSoundWave(s, x, y, radius = 480) {
-      s.soundWaves.push({ x, y, radius: 10, maxRadius: radius, life: 0.5 });
+    // Alert only the 2-3 closest tanks within hearing radius (~280px)
+    function alertNearestTanks(s, killX, killY, maxAlerts = 2, hearingRadius = 280) {
+      const candidates = [];
+      s.enemies.forEach((en) => {
+        if (!en.alive || en.state === "hunt") return;
+        const dist = Math.hypot(en.x - killX, en.y - killY);
+        if (dist <= hearingRadius) {
+          candidates.push({ tank: en, dist });
+        }
+      });
+
+      candidates.sort((a, b) => a.dist - b.dist);
+      const targets = candidates.slice(0, maxAlerts);
+      targets.forEach((item) => {
+        item.tank.alertToSound(killX, killY);
+      });
     }
 
     function step(dt) {
@@ -732,7 +755,7 @@ export default function TankGame() {
         s.treadTracks.push({ x: p.x, y: p.y, angle: p.angle, life: 2.5 });
       }
 
-      // 2. Ambush Check (Stealth Takedown + Sound Propagation)
+      // 2. Ambush Check (Stealth Takedown)
       s.enemies.forEach((en) => {
         if (!en.alive) return;
         const dist = Math.hypot(p.x - en.x, p.y - en.y);
@@ -743,8 +766,8 @@ export default function TankGame() {
           p.recoil = 8;
           cameraShake.current = Math.min(cameraShake.current + 8, 14);
 
-          // Emit Sound Alert
-          emitSoundWave(s, en.x, en.y, 500);
+          // Alert only 2-3 closest tanks to investigate the murder sound
+          alertNearestTanks(s, en.x, en.y, 2, 300);
 
           if (en.hp <= 0) {
             en.alive = false;
@@ -754,7 +777,7 @@ export default function TankGame() {
               s,
               en.x,
               en.y,
-              en.isBoss ? "#f59e0b" : "#ef4444",
+              en.isBoss ? "#d97706" : en.variant === "rust" ? "#ea580c" : "#dc2626",
               en.isBoss ? 32 : 18
             );
           } else {
@@ -766,9 +789,10 @@ export default function TankGame() {
 
       // 3. Update Enemy AI Squad
       s.enemies.forEach((en) => {
-        en.update(dt, p, map.obstacles, s.soundWaves, (shell) => {
+        en.update(dt, p, map.obstacles, (shell) => {
           s.shells.push({ ...shell, life: 1.5 });
-          emitSoundWave(s, shell.x, shell.y, 440);
+          // Gunshot sound alerts 2 closest tanks
+          alertNearestTanks(s, shell.x, shell.y, 2, 280);
         });
       });
 
@@ -795,7 +819,7 @@ export default function TankGame() {
         // Direct hit on player
         if (Math.hypot(sh.x - p.x, sh.y - p.y) < PLAYER_RADIUS) {
           p.alive = false;
-          triggerExplosion(s, p.x, p.y, "#00f0ff", 24);
+          triggerExplosion(s, p.x, p.y, "#38bdf8", 24);
           cameraShake.current = 18;
           playSound("lose");
           setGameState("defeated");
@@ -804,13 +828,7 @@ export default function TankGame() {
         return true;
       });
 
-      // 5. Sound Wave Expansions & Particles
-      s.soundWaves = s.soundWaves.filter((ring) => {
-        ring.radius += (ring.maxRadius - ring.radius) * 12 * dt;
-        ring.life -= dt;
-        return ring.life > 0;
-      });
-
+      // 5. Particles
       s.particles = s.particles.filter((pt) => {
         pt.x += pt.vx * dt;
         pt.y += pt.vy * dt;
@@ -839,6 +857,122 @@ export default function TankGame() {
       }
     }
 
+    // Realistic Render Function for Military Tanks
+    function drawRealisticTank(ctx, tank, isPlayer = false) {
+      const r = tank.radius;
+      ctx.save();
+      ctx.translate(tank.x, tank.y);
+      ctx.rotate(tank.angle);
+
+      // 1. Treads / Tracks
+      ctx.fillStyle = "#0c1017";
+      ctx.fillRect(-r * 1.15, -r * 0.95, r * 2.3, r * 0.42);
+      ctx.fillRect(-r * 1.15, r * 0.53, r * 2.3, r * 0.42);
+
+      // Track Segments / Wheels
+      ctx.fillStyle = "#1e293b";
+      for (let w = -r * 0.9; w <= r * 0.9; w += r * 0.45) {
+        ctx.fillRect(w - 2, -r * 0.92, 4, r * 0.36);
+        ctx.fillRect(w - 2, r * 0.56, 4, r * 0.36);
+      }
+
+      // 2. Armored Hull
+      let hullMainColor = "#0284c7";
+      let hullHighlight = "#38bdf8";
+      let turretColor = "#0369a1";
+
+      if (!isPlayer) {
+        if (tank.isBoss) {
+          hullMainColor = "#78350f";
+          hullHighlight = "#d97706";
+          turretColor = "#92400e";
+        } else if (tank.variant === "rust") {
+          hullMainColor = "#9a3412";
+          hullHighlight = "#ea580c";
+          turretColor = "#c2410c";
+        } else {
+          hullMainColor = "#991b1b";
+          hullHighlight = "#ef4444";
+          turretColor = "#b91c1c";
+        }
+      }
+
+      // Main Hull Body
+      ctx.fillStyle = hullMainColor;
+      ctx.fillRect(-r * 0.9, -r * 0.65, r * 1.8, r * 1.3);
+
+      // Armor Panel Inset
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.4)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-r * 0.9, -r * 0.65, r * 1.8, r * 1.3);
+
+      // Camo Front Slant
+      ctx.fillStyle = hullHighlight;
+      ctx.beginPath();
+      ctx.moveTo(r * 0.5, -r * 0.5);
+      ctx.lineTo(r * 0.85, 0);
+      ctx.lineTo(r * 0.5, r * 0.5);
+      ctx.closePath();
+      ctx.fill();
+
+      // 3. Turret with Recoil & Muzzle Brake
+      const recoilOffset = tank.recoil || 0;
+      ctx.fillStyle = turretColor;
+      ctx.fillRect(0 - recoilOffset, -r * 0.16, r * 1.55, r * 0.32);
+
+      // Muzzle Brake
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(r * 1.4 - recoilOffset, -r * 0.22, r * 0.25, r * 0.44);
+
+      // Turret Dome
+      ctx.fillStyle = hullMainColor;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Commander Hatch
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath();
+      ctx.arc(-r * 0.15, 0, r * 0.24, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+
+      // Hunter Assassin State Icons
+      if (!isPlayer && tank.alive) {
+        if (tank.state === "hunt") {
+          ctx.save();
+          ctx.translate(tank.x, tank.y - tank.radius - 16);
+          ctx.fillStyle = "#ef4444";
+          ctx.font = "bold 18px monospace";
+          ctx.textAlign = "center";
+          ctx.fillText("!", 0, 0);
+          ctx.restore();
+        } else if (tank.state === "investigate") {
+          ctx.save();
+          ctx.translate(tank.x, tank.y - tank.radius - 16);
+          ctx.fillStyle = "#facc15";
+          ctx.font = "bold 18px monospace";
+          ctx.textAlign = "center";
+          ctx.fillText("?", 0, 0);
+          ctx.restore();
+        }
+
+        // Boss Health Gauge
+        if (tank.isBoss && tank.maxHp > 1) {
+          const bw = 54;
+          const bh = 5;
+          ctx.fillStyle = "rgba(0,0,0,0.8)";
+          ctx.fillRect(tank.x - bw / 2, tank.y - tank.radius - 24, bw, bh);
+          ctx.fillStyle = "#f59e0b";
+          ctx.fillRect(tank.x - bw / 2, tank.y - tank.radius - 24, bw * (tank.hp / tank.maxHp), bh);
+        }
+      }
+    }
+
     // High-Definition Canvas Render Pass
     function render() {
       const canvas = canvasRef.current;
@@ -858,8 +992,8 @@ export default function TankGame() {
       ctx.translate(sx, sy);
       ctx.scale(scale, scale);
 
-      // Floor Grid
-      ctx.strokeStyle = "rgba(0, 180, 255, 0.04)";
+      // Grid Pattern
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
       ctx.lineWidth = 1;
       for (let g = 0; g < ARENA_WIDTH; g += 40) {
         ctx.beginPath();
@@ -881,18 +1015,7 @@ export default function TankGame() {
         ctx.restore();
       });
 
-      // Sound Shockwaves
-      s.soundWaves.forEach((ring) => {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(255, 170, 0, ${ring.life * 1.5})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.restore();
-      });
-
-      // Vision Cones (Raycast Lighting)
+      // Vision Cones (Soft Volumetric Glow)
       s.enemies.forEach((en) => {
         if (!en.alive) return;
         const rayCount = 26;
@@ -909,18 +1032,15 @@ export default function TankGame() {
         ctx.closePath();
 
         const grad = ctx.createRadialGradient(en.x, en.y, 10, en.x, en.y, en.visionRange);
-        if (en.isBoss) {
-          grad.addColorStop(
-            0,
-            en.state === "hunt" ? "rgba(255, 140, 0, 0.55)" : "rgba(255, 180, 0, 0.25)"
-          );
-          grad.addColorStop(1, "rgba(255, 140, 0, 0.01)");
+        if (en.state === "hunt") {
+          grad.addColorStop(0, "rgba(239, 68, 68, 0.35)");
+          grad.addColorStop(1, "rgba(239, 68, 68, 0.0)");
+        } else if (en.state === "investigate") {
+          grad.addColorStop(0, "rgba(250, 204, 21, 0.25)");
+          grad.addColorStop(1, "rgba(250, 204, 21, 0.0)");
         } else {
-          grad.addColorStop(
-            0,
-            en.state === "hunt" ? "rgba(255, 30, 30, 0.5)" : "rgba(255, 60, 60, 0.2)"
-          );
-          grad.addColorStop(1, "rgba(255, 30, 30, 0.01)");
+          grad.addColorStop(0, "rgba(255, 255, 255, 0.12)");
+          grad.addColorStop(1, "rgba(255, 255, 255, 0.0)");
         }
         ctx.fillStyle = grad;
         ctx.fill();
@@ -942,9 +1062,9 @@ export default function TankGame() {
       // Projectiles
       s.shells.forEach((sh) => {
         ctx.save();
-        ctx.fillStyle = sh.isBoss ? "#f59e0b" : "#ff2244";
+        ctx.fillStyle = sh.isBoss ? "#f59e0b" : "#ef4444";
         ctx.beginPath();
-        ctx.arc(sh.x, sh.y, sh.isBoss ? 6 : 4, 0, Math.PI * 2);
+        ctx.arc(sh.x, sh.y, sh.isBoss ? 5.5 : 3.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       });
@@ -958,74 +1078,15 @@ export default function TankGame() {
         ctx.restore();
       });
 
-      // Enemy Tanks
+      // Render Enemy Tanks
       s.enemies.forEach((en) => {
         if (!en.alive) return;
-        const r = en.radius;
-        ctx.save();
-        ctx.translate(en.x, en.y);
-        ctx.rotate(en.angle);
-
-        // Treads
-        ctx.fillStyle = "#0c0f17";
-        ctx.fillRect(-r * 1.1, -r * 0.95, r * 2.2, r * 0.45);
-        ctx.fillRect(-r * 1.1, r * 0.5, r * 2.2, r * 0.45);
-
-        // Hull
-        ctx.fillStyle = en.isBoss ? "#b45309" : "#b91c1c";
-        ctx.fillRect(-r * 0.85, -r * 0.7, r * 1.7, r * 1.4);
-        ctx.strokeStyle = "rgba(255,255,255,0.2)";
-        ctx.strokeRect(-r * 0.85, -r * 0.7, r * 1.7, r * 1.4);
-
-        // Barrel
-        ctx.fillStyle = en.isBoss ? "#d97706" : "#dc2626";
-        ctx.fillRect(0 - en.recoil, -r * 0.18, r * 1.5, r * 0.36);
-        ctx.beginPath();
-        ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.restore();
-
-        // Boss Gauge
-        if (en.isBoss && en.maxHp > 1) {
-          const bw = 54;
-          const bh = 6;
-          ctx.fillStyle = "rgba(0,0,0,0.8)";
-          ctx.fillRect(en.x - bw / 2, en.y - en.radius - 18, bw, bh);
-          ctx.fillStyle = "#f59e0b";
-          ctx.fillRect(en.x - bw / 2, en.y - en.radius - 18, bw * (en.hp / en.maxHp), bh);
-        }
+        drawRealisticTank(ctx, en, false);
       });
 
-      // Player Blue Assassin Tank
+      // Render Player Blue Assassin Tank
       if (s.player.alive) {
-        const p = s.player;
-        const r = PLAYER_RADIUS;
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.angle);
-
-        // Treads
-        ctx.fillStyle = "#070e1a";
-        ctx.fillRect(-r * 1.1, -r * 0.95, r * 2.2, r * 0.45);
-        ctx.fillRect(-r * 1.1, r * 0.5, r * 2.2, r * 0.45);
-
-        // Hull
-        ctx.fillStyle = p.dashTimer > 0 ? "#38bdf8" : "#0284c7";
-        ctx.fillRect(-r * 0.85, -r * 0.7, r * 1.7, r * 1.4);
-        ctx.strokeStyle = "rgba(255,255,255,0.3)";
-        ctx.strokeRect(-r * 0.85, -r * 0.7, r * 1.7, r * 1.4);
-
-        // Barrel
-        ctx.fillStyle = "#38bdf8";
-        ctx.fillRect(0 - p.recoil, -r * 0.18, r * 1.5, r * 0.36);
-        ctx.beginPath();
-        ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.restore();
+        drawRealisticTank(ctx, s.player, true);
       }
 
       ctx.restore();
@@ -1158,11 +1219,9 @@ export default function TankGame() {
                   HUNTER STRIKE: TACTICAL
                 </p>
                 <p className="sub-description">
-                  Commercial-grade stealth combat.
+                  Sneak behind enemy tanks to ambush them from blind spots.
                   <br />
-                  <b>Stage 1 starts with 3 patrolling tanks.</b>
-                  <br />
-                  Sound waves draw all nearby units to the kill point!
+                  Nearby enemies get a <b>?</b> and rush to investigate murder sounds!
                   <br />
                   <b>Controls:</b> Tap/Drag or <b>WASD</b>. Press <b>Spacebar / Double Tap</b> to Dash!
                 </p>
