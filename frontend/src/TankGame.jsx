@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 
-// Synthesized Low-Latency Audio Engine
+// Web Audio API engine for real-time sound effects
 let actx = null;
 function getAudio() {
   if (typeof window === "undefined") return null;
@@ -19,40 +19,40 @@ function playSound(type) {
 
     if (type === "kill") {
       osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(25, now + 0.32);
-      gain.gain.setValueAtTime(0.5, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.32);
+      osc.frequency.setValueAtTime(420, now);
+      osc.frequency.exponentialRampToValueAtTime(25, now + 0.35);
+      gain.gain.setValueAtTime(0.55, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(now + 0.32);
+      osc.stop(now + 0.35);
     } else if (type === "shot") {
       osc.type = "square";
-      osc.frequency.setValueAtTime(180, now);
-      osc.frequency.exponentialRampToValueAtTime(30, now + 0.18);
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+      osc.frequency.setValueAtTime(160, now);
+      osc.frequency.exponentialRampToValueAtTime(30, now + 0.2);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(now + 0.18);
+      osc.stop(now + 0.2);
     } else if (type === "alert") {
       osc.type = "sine";
-      osc.frequency.setValueAtTime(700, now);
-      osc.frequency.linearRampToValueAtTime(1100, now + 0.08);
-      osc.frequency.linearRampToValueAtTime(700, now + 0.16);
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+      osc.frequency.setValueAtTime(750, now);
+      osc.frequency.linearRampToValueAtTime(1150, now + 0.08);
+      osc.frequency.linearRampToValueAtTime(750, now + 0.16);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.24);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(now + 0.22);
+      osc.stop(now + 0.24);
     } else if (type === "dash") {
       osc.type = "triangle";
-      osc.frequency.setValueAtTime(260, now);
-      osc.frequency.exponentialRampToValueAtTime(700, now + 0.14);
-      gain.gain.setValueAtTime(0.2, now);
+      osc.frequency.setValueAtTime(280, now);
+      osc.frequency.exponentialRampToValueAtTime(750, now + 0.14);
+      gain.gain.setValueAtTime(0.25, now);
       gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -60,42 +60,41 @@ function playSound(type) {
       osc.stop(now + 0.14);
     } else if (type === "win") {
       osc.type = "triangle";
-      osc.frequency.setValueAtTime(360, now);
-      osc.frequency.exponentialRampToValueAtTime(860, now + 0.38);
-      gain.gain.setValueAtTime(0.32, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.38);
+      osc.frequency.setValueAtTime(380, now);
+      osc.frequency.exponentialRampToValueAtTime(900, now + 0.4);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(now + 0.38);
+      osc.stop(now + 0.4);
     } else if (type === "lose") {
       osc.type = "sawtooth";
       osc.frequency.setValueAtTime(280, now);
-      osc.frequency.exponentialRampToValueAtTime(20, now + 0.55);
-      gain.gain.setValueAtTime(0.45, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.55);
+      osc.frequency.exponentialRampToValueAtTime(20, now + 0.6);
+      gain.gain.setValueAtTime(0.5, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(now + 0.55);
+      osc.stop(now + 0.6);
     }
   } catch (e) {
-    // Safe audio failure
+    // Audio fallback
   }
 }
 
 const ARENA = 800;
 const PLAYER_RADIUS = 18;
-const BASE_FOV = Math.PI / 2.6;
+const BASE_FOV = Math.PI / 2.5; // ~72 degree aggressive vision cone
 
-// Dynamic Level Map Architectures (Changes every stage)
+// Unique tactical layouts for every stage
 function getMapForLevel(level) {
   const mapIdx = ((level - 1) % 5) + 1;
   switch (mapIdx) {
     case 1:
-      // Stage 1: Compound Courtyard (Good cover, clear corridors)
       return {
-        theme: "Courtyard Outpost",
+        theme: "Courtyard Infiltration",
         obstacles: [
           { x: 140, y: 140, w: 110, h: 90 },
           { x: 550, y: 140, w: 110, h: 90 },
@@ -112,11 +111,9 @@ function getMapForLevel(level) {
           { x: 400, y: 100 },
         ],
       };
-
     case 2:
-      // Stage 2: Crossfire Matrix (Open central plaza with sniper angles)
       return {
-        theme: "Matrix Grid",
+        theme: "Matrix Grid Sector",
         obstacles: [
           { x: 120, y: 120, w: 90, h: 160 },
           { x: 590, y: 120, w: 90, h: 160 },
@@ -132,11 +129,9 @@ function getMapForLevel(level) {
           { x: 680, y: 680 },
         ],
       };
-
     case 3:
-      // Stage 3: Warehouse Labyrinth (Tight corridors, multiple blind spots)
       return {
-        theme: "Labyrinth Depot",
+        theme: "Labyrinth Warehouse",
         obstacles: [
           { x: 100, y: 130, w: 220, h: 60 },
           { x: 480, y: 130, w: 220, h: 60 },
@@ -154,11 +149,9 @@ function getMapForLevel(level) {
           { x: 700, y: 700 },
         ],
       };
-
     case 4:
-      // Stage 4: Military Fortress (Pillar halls, tough cover)
       return {
-        theme: "Fortress Bastion",
+        theme: "Fortress Stronghold",
         obstacles: [
           { x: 150, y: 150, w: 100, h: 100 },
           { x: 350, y: 150, w: 100, h: 100 },
@@ -178,10 +171,8 @@ function getMapForLevel(level) {
           { x: 400, y: 680 },
         ],
       };
-
     case 5:
     default:
-      // Stage 5 / Boss Arena: Bunker Ring (Wide ring with a massive central battle zone)
       return {
         theme: "Command Bunker Arena",
         obstacles: [
@@ -211,7 +202,7 @@ function circleRectCollide(cx, cy, r, rect) {
 }
 
 function lineIntersectsRect(x1, y1, x2, y2, rect) {
-  const steps = 12;
+  const steps = 14;
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     const px = x1 + (x2 - x1) * t;
@@ -221,12 +212,11 @@ function lineIntersectsRect(x1, y1, x2, y2, rect) {
   return false;
 }
 
-// 2D Decoupled Smooth Wall-Sliding Physics (Prevents any sticking)
+// 2D Decoupled Sliding Vector Physics
 function tryMoveWithSlide(x, y, dx, dy, radius, obstacles) {
   let finalX = x;
   let finalY = y;
 
-  // Test X displacement
   const testX = x + dx;
   let blockedX = testX < radius || testX > ARENA - radius;
   if (!blockedX) {
@@ -239,7 +229,6 @@ function tryMoveWithSlide(x, y, dx, dy, radius, obstacles) {
   }
   if (!blockedX) finalX = testX;
 
-  // Test Y displacement
   const testY = y + dy;
   let blockedY = testY < radius || testY > ARENA - radius;
   if (!blockedY) {
@@ -270,7 +259,7 @@ function getRandomOpenPoint(obstacles, minDistFromPlayer = 220) {
   return { x: 650, y: 150 };
 }
 
-// Raycasting for Flashlight Lighting Occlusion
+// Raycasting for flashlight lighting occlusion
 function castVisionRay(originX, originY, angle, maxDist, obstacles) {
   const step = 8;
   const count = Math.floor(maxDist / step);
@@ -292,20 +281,20 @@ function castVisionRay(originX, originY, angle, maxDist, obstacles) {
   return { x: originX + cos * maxDist, y: originY + sin * maxDist };
 }
 
-export default function TankAssassinProMaster() {
+export default function HunterTankMaster() {
   const canvasRef = useRef(null);
   const wrapRef = useRef(null);
   const [size, setSize] = useState(520);
   const [level, setLevel] = useState(1);
   const [status, setStatus] = useState("ready"); // "ready" | "playing" | "victory" | "defeated"
-  const [hud, setHud] = useState({ left: 3, total: 3, isBoss: false, theme: "Courtyard Outpost" });
+  const [hud, setHud] = useState({ left: 3, total: 3, isBoss: false, theme: "Courtyard Infiltration" });
 
   const gameRef = useRef(null);
   const keysRef = useRef({});
   const touchAim = useRef(null);
   const shakeRef = useRef(0);
 
-  // Resize canvas responsively
+  // Responsive Canvas scaling
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -324,7 +313,7 @@ export default function TankAssassinProMaster() {
     const isBossStage = lvl % 5 === 0;
     const count = Math.min(2 + lvl, 7); // Level 1 starts with 3 enemy tanks
     const enemies = [];
-    const baseVision = Math.min(270 + lvl * 20, 440);
+    const baseVision = Math.min(280 + lvl * 18, 440);
 
     for (let i = 0; i < count; i++) {
       const spawnPt = mapConfig.spawnPoints[i % mapConfig.spawnPoints.length] || getRandomOpenPoint(mapConfig.obstacles, 240);
@@ -335,8 +324,8 @@ export default function TankAssassinProMaster() {
         y: spawnPt.y,
         radius: 18,
         angle: Math.random() * Math.PI * 2,
-        speed: 210 + Math.min(lvl * 12, 100),
-        turnSpeed: 3.5 + Math.min(lvl * 0.2, 1.8),
+        speed: 215 + Math.min(lvl * 12, 105),
+        turnSpeed: 3.6 + Math.min(lvl * 0.2, 1.8),
         visionRange: baseVision,
         hp: 1,
         maxHp: 1,
@@ -359,7 +348,7 @@ export default function TankAssassinProMaster() {
         y: 160,
         radius: 32,
         angle: Math.PI / 2,
-        speed: 230 + lvl * 6,
+        speed: 235 + lvl * 6,
         turnSpeed: 2.8,
         visionRange: baseVision + 90,
         hp: 3 + Math.floor(lvl / 5) * 2,
@@ -401,6 +390,7 @@ export default function TankAssassinProMaster() {
         enemies: squad,
         shells: [],
         particles: [],
+        soundRings: [],
         treads: [],
       };
       setHud({
@@ -419,13 +409,18 @@ export default function TankAssassinProMaster() {
     loadLevel(1);
   };
 
+  // Restarts from the CURRENT stage level instead of resetting to Level 1
+  const retryCurrentLevel = () => {
+    loadLevel(level);
+  };
+
   const nextLevel = () => {
     const nextLvl = level + 1;
     setLevel(nextLvl);
     loadLevel(nextLvl);
   };
 
-  // Keyboard controls & Dash mechanism
+  // Keyboard navigation & Dash
   useEffect(() => {
     function onKeyDown(e) {
       const k = e.key.toLowerCase();
@@ -442,7 +437,8 @@ export default function TankAssassinProMaster() {
       }
 
       if (e.key === " ") {
-        if (status === "ready" || status === "defeated") startGame();
+        if (status === "ready") startGame();
+        if (status === "defeated") retryCurrentLevel();
         if (status === "victory") nextLevel();
       }
     }
@@ -503,14 +499,16 @@ export default function TankAssassinProMaster() {
       }
     }
 
-    function alertNearbySquad(s, alertSourceX, alertSourceY) {
+    // Hunter Assassin Sound Wave Mechanic: Alerts all squad tanks to sprint to kill location
+    function triggerSoundAlert(s, alertX, alertY, soundRadius = 450) {
+      s.soundRings.push({ x: alertX, y: alertY, radius: 10, maxRadius: soundRadius, life: 0.5 });
       s.enemies.forEach((other) => {
-        if (!other.alive || other.state === "hunt") return;
-        const dist = Math.hypot(other.x - alertSourceX, other.y - alertSourceY);
-        if (dist < 360) {
-          other.state = "investigate";
-          other.target = { x: alertSourceX, y: alertSourceY };
-          other.retargetT = 3.5;
+        if (!other.alive) return;
+        const dist = Math.hypot(other.x - alertX, other.y - alertY);
+        if (dist <= soundRadius) {
+          other.state = "hunt";
+          other.target = { x: alertX, y: alertY };
+          other.retargetT = 4.5; // Aggressively swarm the sound point
         }
       });
     }
@@ -522,7 +520,7 @@ export default function TankAssassinProMaster() {
       const map = s.map;
       const keys = keysRef.current;
 
-      // 1. High-Velocity Smooth Player Movement
+      // 1. Player Movement & Physics
       let moveX = 0;
       let moveY = 0;
       if (keys["w"] || keys["arrowup"]) moveY -= 1;
@@ -577,7 +575,7 @@ export default function TankAssassinProMaster() {
         s.treads.push({ x: p.x, y: p.y, angle: p.angle, life: 2.5 });
       }
 
-      // 2. High-Speed Ambush & Elimination
+      // 2. Ambush & Sound Alert Check
       s.enemies.forEach((en) => {
         if (!en.alive) return;
         const dist = Math.hypot(p.x - en.x, p.y - en.y);
@@ -588,8 +586,8 @@ export default function TankAssassinProMaster() {
           p.recoil = 8;
           shakeRef.current = Math.min(shakeRef.current + 8, 14);
 
-          // Alert nearby tanks to investigate murder site
-          alertNearbySquad(s, en.x, en.y);
+          // All nearby enemies hear the blast and hunt you
+          triggerSoundAlert(s, en.x, en.y, 480);
 
           if (en.hp <= 0) {
             en.alive = false;
@@ -602,7 +600,7 @@ export default function TankAssassinProMaster() {
         }
       });
 
-      // 3. Autonomous Tactical Enemy AI (Never Stucks, Squad Coordination)
+      // 3. Autonomous Enemy AI & Coordinated Hunting
       s.enemies.forEach((en) => {
         if (!en.alive) return;
         if (en.fireCooldown > 0) en.fireCooldown -= dt;
@@ -623,9 +621,9 @@ export default function TankAssassinProMaster() {
           if (en.state !== "hunt") playSound("alert");
           en.state = "hunt";
           en.target = { x: p.x, y: p.y };
-          en.retargetT = 3.5;
-          // Radio alert to whole team
-          alertNearbySquad(s, p.x, p.y);
+          en.retargetT = 4.0;
+          // Radio whole team to converge
+          triggerSoundAlert(s, p.x, p.y, 420);
         } else if (en.retargetT <= 0) {
           en.state = "patrol";
           en.target = getRandomOpenPoint(map.obstacles, 0);
@@ -640,7 +638,7 @@ export default function TankAssassinProMaster() {
 
         en.angle += Math.max(-en.turnSpeed * dt, Math.min(en.turnSpeed * dt, turnDiff));
 
-        // 5-Ray Obstacle Avoidance Whiskers
+        // 5-Ray Sensor Whisker Obstacle Avoidance
         let avoidAngle = 0;
         const lookAhead = en.radius + 38;
         const feelers = [-0.65, -0.32, 0, 0.32, 0.65];
@@ -674,13 +672,12 @@ export default function TankAssassinProMaster() {
         en.x = res.x;
         en.y = res.y;
 
-        // Anti-Stuck Autonomous Watchdog
+        // Anti-Stuck Dynamic Resolver
         const movedDist = Math.hypot(en.x - en.lastPos.x, en.y - en.lastPos.y);
         en.lastPos = { x: en.x, y: en.y };
         if (movedDist < 1.0) {
           en.stuckCounter += dt;
           if (en.stuckCounter > 0.4) {
-            // Instantly unstick: spin and pick fresh sector
             en.angle += (Math.random() > 0.5 ? 1 : -1) * 2.5 * dt;
             en.target = getRandomOpenPoint(map.obstacles, 0);
             en.retargetT = 2.0;
@@ -690,7 +687,7 @@ export default function TankAssassinProMaster() {
           en.stuckCounter = 0;
         }
 
-        // Fire cannon when locked on target
+        // Precision Fire
         if (en.state === "hunt" && Math.abs(dAngle) < 0.25 && en.fireCooldown <= 0 && !blocked) {
           en.fireCooldown = en.isBoss ? 0.7 : 1.1;
           const barrelLen = en.radius + 12;
@@ -703,6 +700,7 @@ export default function TankAssassinProMaster() {
             life: 1.5,
           });
           playSound("shot");
+          triggerSoundAlert(s, en.x, en.y, 450);
         }
       });
 
@@ -736,7 +734,13 @@ export default function TankAssassinProMaster() {
         return true;
       });
 
-      // 5. Particles & Tread Marks
+      // 5. Sound Waves & Particles
+      s.soundRings = s.soundRings.filter((ring) => {
+        ring.radius += (ring.maxRadius - ring.radius) * 12 * dt;
+        ring.life -= dt;
+        return ring.life > 0;
+      });
+
       s.particles = s.particles.filter((pt) => {
         pt.x += pt.vx * dt;
         pt.y += pt.vy * dt;
@@ -765,7 +769,7 @@ export default function TankAssassinProMaster() {
       }
     }
 
-    // Rendering Engine
+    // High-Resolution Rendering Engine
     function render() {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -791,8 +795,6 @@ export default function TankAssassinProMaster() {
         ctx.beginPath();
         ctx.moveTo(g, 0);
         ctx.lineTo(g, ARENA);
-        ctx.moveTo(0, g);
-        ctx.lineTo(ARENA, g);
         ctx.stroke();
       }
 
@@ -807,7 +809,18 @@ export default function TankAssassinProMaster() {
         ctx.restore();
       });
 
-      // Realistic Raycast Vision Flashlights
+      // Sound Shockwave Rings
+      s.soundRings.forEach((ring) => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 170, 0, ${ring.life * 1.5})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // Vision Flashlights
       s.enemies.forEach((en) => {
         if (!en.alive) return;
         const rayCount = 26;
@@ -835,7 +848,7 @@ export default function TankAssassinProMaster() {
         ctx.fill();
       });
 
-      // Barricades for current Level Map
+      // Barricades
       s.map.obstacles.forEach((ob) => {
         ctx.fillStyle = "rgba(0,0,0,0.5)";
         ctx.fillRect(ob.x + 5, ob.y + 5, ob.w, ob.h);
@@ -953,9 +966,9 @@ export default function TankAssassinProMaster() {
   }, [status, size]);
 
   return (
-    <div className="turbo-hunter-root" ref={wrapRef}>
+    <div className="hunter-master-root" ref={wrapRef}>
       <style>{`
-        .turbo-hunter-root {
+        .hunter-master-root {
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -970,7 +983,7 @@ export default function TankAssassinProMaster() {
           max-width: 740px;
           margin: 0 auto;
         }
-        .turbo-hud {
+        .master-hud {
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -1038,7 +1051,7 @@ export default function TankAssassinProMaster() {
         .btn-action:hover { background: #0369a1; }
       `}</style>
 
-      <div className="turbo-hud">
+      <div className="master-hud">
         <span className="stage-txt">STAGE {level}</span>
         <span className="theme-txt">{hud.theme}</span>
         {hud.isBoss && <span className="boss-warning">⚠ HEAVY BOSS ENGAGED ⚠</span>}
@@ -1062,14 +1075,14 @@ export default function TankAssassinProMaster() {
             {status === "ready" && (
               <>
                 <p className="title" style={{ color: "#38bdf8" }}>
-                  HUNTER TANK: MASTER
+                  TANK HUNTER: ASSASSIN
                 </p>
                 <p className="sub">
-                  Dynamic layouts and intelligent squad response.
+                  Killing an enemy emits a sound shockwave that draws nearby tanks to your position.
                   <br />
-                  <b>Stage 1 starts with 3 aggressive patrolling tanks.</b>
+                  <b>Stage 1 starts with 3 patrolling tanks.</b>
                   <br />
-                  Every 5th stage introduces a <b>Heavy Boss Tank</b> in the Bunker Arena!
+                  Failing a level lets you retry from that exact level!
                   <br />
                   <b>Controls:</b> Tap/Drag or <b>WASD</b>. Press <b>Spacebar / Double Tap</b> to Turbo Dash!
                 </p>
@@ -1085,7 +1098,7 @@ export default function TankAssassinProMaster() {
                   STAGE {level} CLEARED!
                 </p>
                 <p className="sub">
-                  Sector neutralized. Entering <b>{getMapForLevel(level + 1).theme}</b> with {Math.min(2 + (level + 1), 7)} coordinated tanks
+                  Sector cleared. Entering <b>{getMapForLevel(level + 1).theme}</b> with {Math.min(2 + (level + 1), 7)} coordinated tanks
                   {(level + 1) % 5 === 0 ? " and an ARMORED BOSS TANK!" : "."}
                 </p>
                 <button className="btn-action" onClick={nextLevel}>
@@ -1099,9 +1112,9 @@ export default function TankAssassinProMaster() {
                 <p className="title" style={{ color: "#ef4444" }}>
                   ELIMINATED
                 </p>
-                <p className="sub">You were spotted and taken down in Stage {level}. Stay in the shadows and strike from blind spots.</p>
-                <button className="btn-action" onClick={startGame}>
-                  RETRY
+                <p className="sub">You were spotted and neutralized in Stage {level}.</p>
+                <button className="btn-action" onClick={retryCurrentLevel}>
+                  RETRY STAGE {level}
                 </button>
               </>
             )}
