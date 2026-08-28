@@ -14,7 +14,7 @@ const DIFFICULTIES = {
 
 const BOOT_LINES = [
   "RAJDIP.SYS ...",
-  "We AREE BACKKK....",
+  "Welcome to play and gain some fun ...",
   "LET'S MAKE FUN AGAIN ... OK",
   " 3-----2-----1----!!!!... OK",
   "READY_",

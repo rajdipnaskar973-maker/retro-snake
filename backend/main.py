@@ -14,21 +14,8 @@ from email.mime.multipart import MIMEMultipart
 import json
 import os
 from datetime import datetime
-GMAIL_ADDRESS = os.environ.get("GMAIL_ADDRESS", "rajdipnaskar973@gmail.com")
-GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "your16letterpassword")
 otp_store: dict = {}
 users_file = os.path.join(os.path.dirname(__file__), "users.json")
-
-def load_users():
-    if not os.path.exists(users_file):
-        return []
-    with open(users_file, "r") as f:
-        return json.load(f)
-
-def save_users(users):
-    with open(users_file, "w") as f:
-        json.dump(users, f, indent=2)
-
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
