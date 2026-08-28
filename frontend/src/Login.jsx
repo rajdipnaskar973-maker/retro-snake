@@ -22,13 +22,13 @@ export default function Login({ onLogin }) {
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="login-field">
             <label>NAME_</label>
-            <input type="text" placeholder="your name" value={name}
-              onChange={(e) => setName(e.target.value)} maxLength={20} />
+            <input type="text" placeholder="your name"
+              value={name} onChange={(e) => setName(e.target.value)} maxLength={20} />
           </div>
           <div className="login-field">
             <label>MOBILE_</label>
-            <input type="tel" placeholder="10 digit mobile number" value={phone}
-              onChange={(e) => setPhone(e.target.value)} maxLength={10} />
+            <input type="tel" placeholder="10 digit mobile"
+              value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={10} />
           </div>
           {error && <p className="login-error">⚠ {error}</p>}
           <button className="btn login-btn" type="submit">▶ ENTER TERMINAL</button>
