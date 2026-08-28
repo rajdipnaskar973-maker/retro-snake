@@ -1,22 +1,32 @@
 import { useEffect, useState } from "react";
 import SnakeGame from "./SnakeGame.jsx";
+import TetrisGame from "./TetrisGame.jsx";
+import ZombieGame from "./ZombieGame.jsx";
+import TankGame from "./TankGame.jsx";
 import Login from "./Login.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const INSTAGRAM_URL = "https://www.instagram.com/_rajdip_001/?hl=en";
 const FACEBOOK_URL = "https://www.facebook.com/rajdip.naskar.675859";
-const WHATSAPP_URL = "https://wa.me/919733087126";
+
 const DIFFICULTIES = {
   easy:   { label: "EASY",   speedStart: 150, speedMin: 95, step: 2 },
   medium: { label: "MEDIUM", speedStart: 120, speedMin: 70, step: 3 },
   hard:   { label: "HARD",   speedStart: 95,  speedMin: 45, step: 4 },
 };
 
+const GAMES = [
+  { id: "snake",  title: "SNAKE.EXE",  desc: "Classic snake — eat, grow, survive",     icon: "🐍" },
+  { id: "tetris", title: "TETRIS.EXE", desc: "Stack blocks, clear lines, beat gravity", icon: "🟦" },
+  { id: "zombie", title: "ZOMBIE.EXE", desc: "Survive zombie waves — WASD + auto-aim",  icon: "🧟" },
+  { id: "tank",   title: "TANK.EXE",   desc: "2-player tank battle — same keyboard",    icon: "🎖️" },
+];
+
 const BOOT_LINES = [
-  "RAJDIP.SYS ...",
-  "Welcome to play and gain some fun ...",
-  "LET'S MAKE FUN AGAIN ... OK",
-  " 3-----2-----1----!!!!... OK",
+  "INITIALIZING RAJDIP.SYS ...",
+  "LOADING TERMINAL FONT ... OK",
+  "MOUNTING GAMES ... OK",
+  "CONNECTING TO SCORE SERVER ... OK",
   "READY_",
 ];
 
@@ -27,11 +37,8 @@ function useBootSequence() {
     let i = 0;
     const interval = setInterval(() => {
       setLines((prev) => [...prev, BOOT_LINES[i]]);
-      i += 1;
-      if (i >= BOOT_LINES.length) {
-        clearInterval(interval);
-        setTimeout(() => setDone(true), 350);
-      }
+      i++;
+      if (i >= BOOT_LINES.length) { clearInterval(interval); setTimeout(() => setDone(true), 350); }
     }, 220);
     return () => clearInterval(interval);
   }, []);
@@ -41,22 +48,22 @@ function useBootSequence() {
 export default function App() {
   const { lines, done } = useBootSequence();
   const [highScores, setHighScores] = useState([]);
-  const [name, setName] = useState("");
+  const [scoreName, setScoreName] = useState("");
   const [lastScore, setLastScore] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [difficulty, setDifficulty] = useState("medium");
+  const [activeGame, setActiveGame] = useState(null);
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem("rajdip_user");
     return saved ? JSON.parse(saved) : null;
   });
 
   function handleLogin(u) { setUser(u); }
-  function handleLogout() {
-  localStorage.removeItem("rajdip_user");
-  setUser(null);
-}
+  function handleLogout() { localStorage.removeItem("rajdip_user"); setUser(null); }
 
-  const bestScore = highScores[0]?.score ?? 0;
+  const bestScore = highScores
+    .filter(s => s.game === activeGame)
+    .reduce((max, s) => Math.max(max, s.score), 0);
 
   useEffect(() => {
     fetch(`${API_URL}/api/highscores`)
@@ -65,26 +72,23 @@ export default function App() {
       .catch(() => setHighScores([]));
   }, []);
 
-  function handleGameOver(score) {
-    setLastScore(score);
-    setSubmitted(false);
-  }
+  function handleGameOver(score) { setLastScore(score); setSubmitted(false); }
 
   function submitScore(e) {
     e.preventDefault();
-    if (!name.trim() || lastScore === null) return;
+    if (!scoreName.trim() || lastScore === null) return;
     fetch(`${API_URL}/api/highscores`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), score: lastScore, difficulty }),
+      body: JSON.stringify({ name: scoreName.trim(), score: lastScore, difficulty, game: activeGame }),
     })
       .then((r) => r.json())
-      .then((updated) => {
-        setHighScores(updated);
-        setSubmitted(true);
-      })
+      .then((updated) => { setHighScores(updated); setSubmitted(true); })
       .catch(() => {});
   }
+
+  function selectGame(id) { setActiveGame(id); setLastScore(null); setSubmitted(false); }
+  function goBack() { setActiveGame(null); setLastScore(null); setSubmitted(false); }
 
   if (!user) return <Login onLogin={handleLogin} />;
 
@@ -94,76 +98,86 @@ export default function App() {
       {!done ? (
         <div className="boot-screen">
           <pre className="boot-log">
-            {lines.map((l, i) => (
-              <div key={i}>{l}</div>
-            ))}
+            {lines.map((l, i) => <div key={i}>{l}</div>)}
             <span className="cursor">▮</span>
           </pre>
         </div>
       ) : (
         <>
           <header className="site-header">
-            <span className="logo">☠️☠️</span>
+            <span className="logo">RAJDIP.SYS</span>
             <nav>
               <a href="#play">PLAY</a>
               <a href="#scores">SCORES</a>
               <a href="#contact">CONTACT</a>
+              <button className="btn small" onClick={handleLogout}>LOGOUT</button>
             </nav>
           </header>
 
           <main>
             <section className="hero">
               <p className="eyebrow">// personal terminal — est. 2026</p>
-              <h1>Hi, I'm Rajdip. <br /> Welcome to my little corner of the internet.</h1>
+              <h1>Hi, I'm Rajdip.<br />Welcome to my little corner of the internet.</h1>
             </section>
 
             <section id="play" className="play-section">
-              <div className="difficulty-picker" role="group" aria-label="Select difficulty">
-                {Object.entries(DIFFICULTIES).map(([key, d]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`diff-btn ${difficulty === key ? "active" : ""}`}
-                    onClick={() => setDifficulty(key)}
-                  >
-                    {d.label}
-                  </button>
-                ))}
-              </div>
-              <SnakeGame
-                onGameOver={handleGameOver}
-                highScore={bestScore}
-                settings={DIFFICULTIES[difficulty]}
-              />
-              {lastScore !== null && !submitted && (
-                <form className="score-form" onSubmit={submitScore}>
-                  <label htmlFor="name">save your score —</label>
-                  <input
-                    id="name"
-                    maxLength={12}
-                    placeholder="YOUR NAME"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                  <button className="btn small" type="submit">SUBMIT</button>
-                </form>
+              {!activeGame ? (
+                <>
+                  <h2 className="game-select-title">&gt; SELECT GAME</h2>
+                  <div className="game-grid">
+                    {GAMES.map((g) => (
+                      <button key={g.id} className="game-card" onClick={() => selectGame(g.id)}>
+                        <span className="game-card-icon">{g.icon}</span>
+                        <span className="game-card-title">{g.title}</span>
+                        <span className="game-card-desc">{g.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <button className="btn small back-btn" onClick={goBack}>← BACK</button>
+
+                  {activeGame === "snake" && (
+                    <>
+                      <div className="difficulty-picker">
+                        {Object.entries(DIFFICULTIES).map(([key, d]) => (
+                          <button key={key} type="button"
+                            className={`diff-btn ${difficulty === key ? "active" : ""}`}
+                            onClick={() => setDifficulty(key)}>{d.label}</button>
+                        ))}
+                      </div>
+                      <SnakeGame onGameOver={handleGameOver} highScore={bestScore} settings={DIFFICULTIES[difficulty]} />
+                    </>
+                  )}
+                  {activeGame === "tetris" && <TetrisGame onGameOver={handleGameOver} highScore={bestScore} />}
+                  {activeGame === "zombie" && <ZombieGame onGameOver={handleGameOver} highScore={bestScore} />}
+                  {activeGame === "tank"   && <TankGame   onGameOver={handleGameOver} highScore={bestScore} />}
+
+                  {lastScore !== null && !submitted && (
+                    <form className="score-form" onSubmit={submitScore}>
+                      <label>save your score —</label>
+                      <input maxLength={12} placeholder="YOUR NAME" value={scoreName}
+                        onChange={(e) => setScoreName(e.target.value)} />
+                      <button className="btn small" type="submit">SUBMIT</button>
+                    </form>
+                  )}
+                  {submitted && <p className="saved-msg">score saved to the leaderboard ✓</p>}
+                </>
               )}
-              {submitted && <p className="saved-msg">score saved to the leaderboard ✓</p>}
             </section>
 
             <section id="scores" className="scores-section">
               <h2>&gt; HIGH SCORES</h2>
               {highScores.length === 0 ? (
-                <p className="muted"></p>
+                <p className="muted">no scores yet — be the first!</p>
               ) : (
                 <ol className="score-list">
                   {highScores.map((s, i) => (
                     <li key={i}>
                       <span className="rank">{String(i + 1).padStart(2, "0")}</span>
                       <span className="pname">{s.name}</span>
-                      {s.difficulty && (
-                        <span className="pdiff">{s.difficulty.slice(0, 4).toUpperCase()}</span>
-                      )}
+                      {s.game && <span className="pdiff">{s.game.toUpperCase()}</span>}
                       <span className="pscore">{s.score}</span>
                     </li>
                   ))}
@@ -174,14 +188,9 @@ export default function App() {
             <section id="contact" className="contact-section">
               <h2>&gt; CONTACT</h2>
               <p>Find / message me on Instagram —{" "}
-                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">@_rajdip_001 ↗</a>
-              </p>
+                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">@_rajdip_001 ↗</a></p>
               <p>Or connect with me on Facebook —{" "}
-                <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">Rajdip Naskar ↗</a>
-              </p>
-              <p>Or send me a message on WhatsApp —{" "}
-                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">Rajdip Naskar ↗</a>
-              </p>
+                <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">Rajdip Naskar ↗</a></p>
             </section>
           </main>
 

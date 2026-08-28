@@ -51,7 +51,8 @@ def save_scores(scores: list[dict]) -> None:
 class ScoreIn(BaseModel):
     name: str = Field(min_length=1, max_length=12)
     score: int = Field(ge=0)
-
+    difficulty: str = Field(default="medium")
+    game: str = Field(default="snake")
 
 @app.get("/")
 def root():
