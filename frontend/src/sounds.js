@@ -13,7 +13,7 @@ function getCtx() {
   return ctx;
 }
 
-function beep({ freq = 440, duration = 0.08, type = "square", volume = 0.15, glideTo = null }) {
+function beep({ freq = 900, duration = 0.34, type = "square", volume = 0.23, glideTo = null }) {
   const audio = getCtx();
   const osc = audio.createOscillator();
   const gain = audio.createGain();
